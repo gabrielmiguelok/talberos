@@ -1,0 +1,262 @@
+/************************************************************************************
+ * Archivo: /styles/globals.css
+ * LICENSE: MIT
+ *
+ * DESCRIPTION:
+ *   Hoja de estilo global enfocada en:
+ *     - Reset básico
+ *     - Variables de modo claro (root) y modo oscuro (.dark-mode)
+ *     - Estilos base para tipografía, enlaces y botones
+ *     - Estilos específicos de la tabla (selección, copiado, responsividad)
+ *
+ *   Principios:
+ *     - SRP: Se encarga únicamente de los estilos globales y de la tabla.
+ *     - Bajo acoplamiento: El modo oscuro/claro está vinculado a la clase .dark-mode,
+ *       aplicada localmente según la lógica del componente.
+ *
+ * @version 1.0
+ ************************************************************************************/
+
+/* Basic CSS reset */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/*
+  MODO CLARO (VALORES POR DEFECTO)
+  Definidos en :root
+*/
+:root {
+  --font-family-main: 'Work Sans', Arial, sans-serif;
+
+  /* Paleta (claro) */
+  --color-primary: #2D9CDB;
+  --color-primary-light: #56CCF2;
+  --color-secondary: #27AE60;
+  --color-secondary-light: #6FCF97;
+
+  /* Fondos y texto */
+  --color-bg: #FFFFFF;         /* fondo general */
+  --color-bg-paper: #FFFFFF;   /* paneles, tarjetas, contenedores */
+  --color-text: #333333;       /* texto */
+  --color-divider: #dddddd;
+
+  /* Estados / Mensajes */
+  --color-info: #2D9CDB;
+  --color-success: #27AE60;
+  --color-warning: #F2C94C;
+  --color-error: #EB5757;
+
+  /* Tipografía base */
+  --font-size-base: 16px;
+
+  /* Navbar, barra de filtros y tabla */
+  --navbar-bg: linear-gradient(135deg, #1e88e5 0%, #64b5f6 100%);
+  --navbar-text: #ffffff;
+  --navbar-button-bg: #64b5f6;
+  --navbar-hover-bg: rgba(255, 255, 255, 0.2);
+  --navbar-elevation: 0px 2px 8px rgba(0, 0, 0, 0.4);
+
+  --color-filterbar-bg: linear-gradient(to right, #1e88e5, #ffffff);
+
+  /* Primera columna y encabezado de la tabla */
+  --color-table-index-colgroup: rgba(30,136,229,0.08); /* colgroup 1ª col */
+  --color-table-index-header: rgba(30,136,229,0.25);   /* header 1ª col */
+  --color-table-index-body: rgba(30,136,229,0.10);     /* cuerpo 1ª col */
+  --color-table-header: rgba(30,136,229,0.15);         /* resto headers */
+}
+
+/*
+  MODO OSCURO (.dark-mode)
+*/
+.dark-mode {
+  color-scheme: dark;
+
+  /* Ajustes fondo y texto */
+  --color-bg: #121212;
+  --color-bg-paper: #1F1F1F;
+  --color-text: #FFFFFF;
+  --color-divider: #444444;
+
+  /* Ajustes barra y tabla */
+  --navbar-bg: linear-gradient(135deg, #333 0%, #444 100%);
+  --navbar-text: #ffffff;
+  --navbar-button-bg: #8e8e8e;
+  --navbar-hover-bg: rgba(255, 255, 255, 0.2);
+  --navbar-elevation: 0px 2px 8px rgba(0, 0, 0, 0.7);
+
+  --color-filterbar-bg: linear-gradient(to right, #1e88e5, #64b5f6);
+  --color-table-index-colgroup: rgba(30,136,229,0.15);
+  --color-table-index-header: rgba(30,136,229,0.35);
+  --color-table-index-body: rgba(30,136,229,0.20);
+  --color-table-header: rgba(30,136,229,0.25);
+
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* BODY aplicado con las variables */
+body {
+  font-family: var(--font-family-main);
+  font-size: var(--font-size-base);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+/* Links */
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* Base buttons */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  position: relative;
+  overflow: hidden;
+}
+button:hover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-text);
+  opacity: 0.1;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+button:active::after {
+  opacity: 0.2;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Remove focus outline */
+:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* =====================================================================
+   Table Visual Effects: selección y copiado
+===================================================================== */
+.selected-cell-rect {
+  outline: 1px solid #a5cce8;
+  outline-offset: -1px;
+}
+
+@keyframes luminous {
+  0% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(173, 216, 230, 0.8);
+  }
+  100% {
+    background-color: rgba(173, 216, 230, 0.3);
+  }
+}
+
+.copied-cell-rect {
+  animation: luminous 0.8s ease-out forwards;
+}
+
+/* ----------------------------------------------------------------------
+   Custom Table Styles
+---------------------------------------------------------------------- */
+.custom-table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  background-color: var(--color-bg-paper);
+}
+
+.custom-th,
+.custom-td {
+  border: 1px solid var(--color-divider);
+  padding: 2px 4px;
+  position: relative;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text);
+}
+
+/* Encabezados de tabla */
+.column-header-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.column-header-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.column-header-actions {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Resize handle */
+.resize-handle {
+  cursor: col-resize;
+  width: 3px;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: transparent;
+}
+.resize-handle:hover {
+  background: #bbb;
+}
+
+/* Responsivo */
+@media (max-width: 1024px) {
+  body {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: 13px;
+  }
+}
+
+/* ----------------------------------------------------------------------
+   Overrides para modo oscuro en la tabla
+---------------------------------------------------------------------- */
+.dark-mode .custom-table {
+  background-color: var(--color-bg-paper);
+}
+.dark-mode .custom-th,
+.dark-mode .custom-td {
+  border: 1px solid var(--color-divider);
+  background-color: var(--color-bg-paper);
+  color: var(--color-text);
+}
