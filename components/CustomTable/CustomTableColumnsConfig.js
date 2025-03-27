@@ -7,11 +7,8 @@
  * (CustomTable). Incluye funciones utilitarias para:
  *   1. Verificar y normalizar URLs.
  *   2. Renderizar celdas tipo 'link'.
- *   3. Generar la definición de columnas a partir de un objeto de configuración (fieldsDefinition).
- *
- * FUNCIONALIDAD PRINCIPAL:
- * - `buildColumnsFromDefinition(fieldsDefinition)`: Devuelve un array de columnas que la tabla
- *   (CustomTable) usa internamente, tomando como base un objeto de definición (fieldsDefinition).
+ *   3. Generar la definición de columnas a partir de un objeto de configuración (fieldsDefinition),
+ *      **exceptuando** la columna especial de índice (que ahora vive en 'RowIndexColumn.js').
  *
  * EJEMPLO DE USO:
  * ~~~javascript
@@ -60,7 +57,7 @@ function normalizeUrl(url) {
  * - Si existe un valor, crea un enlace que se abre en una nueva pestaña.
  *
  * @function renderLinkCell
- * @param {object} info - Objeto provisto por la tabla, contiene los métodos para obtener el valor de la celda.
+ * @param {object} info - Objeto provisto por la tabla, contiene métodos para obtener el valor de la celda.
  * @returns {JSX.Element|null} - Enlace anclado (<a>), o `null` si no hay valor.
  */
 function renderLinkCell(info) {
@@ -79,7 +76,7 @@ function renderLinkCell(info) {
  * Crea un array de definición de columnas para la tabla (CustomTable).
  *
  * @function buildColumnsFromDefinition
- * @param {Object} fieldsDefinition - Objeto que describe cada campo (columna), por ejemplo:
+ * @param {Object} fieldsDefinition - Objeto que describe cada campo (columna). Ej:
  *   {
  *     nombreCampo: {
  *       type: 'link' | 'numeric' | 'text',
@@ -88,18 +85,18 @@ function renderLinkCell(info) {
  *       // ...otros posibles atributos
  *     }
  *   }
- * @returns {Array} - Array de columnas transformado, listo para ser utilizado en el componente CustomTable.
+ * @returns {Array} - Array de columnas transformado, listo para ser utilizado en CustomTable.
  *
  * @description
  * Cada propiedad del objeto `fieldsDefinition` corresponde a un campo (columna) en la tabla.
  * La estructura soporta:
  *  - `type`: Puede ser 'link', 'numeric' o 'text'. Controla la manera de mostrar la celda.
  *  - `header`: Texto que se muestra en el encabezado de la columna.
- *  - `width`: Ancho recomendado para la columna en pixeles.
+ *  - `width`: Ancho recomendado en pixeles.
  *
- * Si `type` es 'link', se usará la función `renderLinkCell` para renderizar el contenido
- * como un enlace. Si `type` es 'numeric', se marca la columna como numérica para su estilado.
- * Si no se especifica `type`, la columna se maneja como 'text' (por defecto).
+ * Si `type` es 'link', se usará `renderLinkCell`.
+ * Si `type` es 'numeric', se marca la columna como numérica para estilado.
+ * Caso contrario, se maneja como 'text'.
  */
 export function buildColumnsFromDefinition(fieldsDefinition) {
   if (!fieldsDefinition || typeof fieldsDefinition !== 'object') {
@@ -108,7 +105,7 @@ export function buildColumnsFromDefinition(fieldsDefinition) {
 
   return Object.keys(fieldsDefinition).map((fieldKey) => {
     const def = fieldsDefinition[fieldKey];
-    const type = def.type || 'text'; // Por defecto a 'text'
+    const type = def.type || 'text'; // Por defecto 'text'
 
     let cellRenderer;
     if (type === 'link') {
@@ -125,7 +122,6 @@ export function buildColumnsFromDefinition(fieldsDefinition) {
       header: def.header || fieldKey.toUpperCase(),
       width: def.width || 100,
       isNumeric,
-      // Si la columna es 'link', se asigna renderLinkCell; de lo contrario, se muestra un texto plano.
       cell: cellRenderer,
     };
   });

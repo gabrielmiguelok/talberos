@@ -27,6 +27,8 @@
  *   filtersToolbarProps={{ ... }}
  *   onRefresh={handleDataRefresh}
  *   showFiltersToolbar
+ *   onHideColumns={(colIds) => console.log('Ocultar columnas:', colIds)}
+ *   onHideRows={(rowsIds) => console.log('Ocultar filas:', rowsIds)}
  * />
  * ~~~
  */
@@ -64,6 +66,8 @@ import Pagination from './Pagination';
  * @param {Object} [filtersToolbarProps] - Propiedades que se pasan al componente `FiltersToolbar`.
  * @param {Function} [onRefresh] - Función de callback que se ejecuta al presionar el botón de refrescar en la toolbar.
  * @param {boolean} [showFiltersToolbar=true] - Controla si se muestra o no la barra de filtros (FiltersToolbar).
+ * @param {Function} [onHideColumns] - Callback para ocultar una o varias columnas. Recibe un array de IDs de columnas.
+ * @param {Function} [onHideRows] - Callback para ocultar una o varias filas. Recibe un array de índices (IDs de filas).
  *
  * @returns {JSX.Element} - Devuelve el componente de tabla con todas sus características.
  *
@@ -82,6 +86,8 @@ export default function CustomTable({
   filtersToolbarProps,
   onRefresh,
   showFiltersToolbar = true,
+  onHideColumns,
+  onHideRows,
 }) {
   // Manejo de tema oscuro/claro
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -173,9 +179,6 @@ export default function CustomTable({
 
   /**
    * Cambia el estado de ordenamiento según la columna seleccionada.
-   * - Si seleccionas una columna diferente, asigna 'desc'.
-   * - Si ya estaba 'desc', pasa a 'asc'.
-   * - Si ya estaba 'asc', quita el ordenamiento (colId = '', direction = '').
    */
   const toggleSort = (colId) => {
     setSorting((prev) => {
@@ -208,10 +211,7 @@ export default function CustomTable({
   }, [columnFilters, finalColumns]);
 
   /**
-   * Aplica el filtrado y ordenamiento a los datos usando `FilterFlow` y `applySorting`.
-   * - Filtro por columnas.
-   * - Filtro global.
-   * - Ordenamiento.
+   * Aplica el filtrado y ordenamiento a los datos.
    */
   const filteredData = useMemo(() => {
     const flow = new FilterFlow({
@@ -232,12 +232,11 @@ export default function CustomTable({
 
   /**
    * Se crea la instancia de tabla usando React Table (TanStack).
-   * - Se definen filas, columnas, métodos de paginación.
    */
   const table = useReactTable({
     data: filteredData,
     columns: indexedColumns,
-    getRowId: (_row, rowIndex) => rowIndex, // Asigna el índice como ID de fila
+    getRowId: (_row, rowIndex) => String(rowIndex), // Retornamos un STRING de "0", "1", etc.
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     pageCount: Math.ceil(filteredData.length / pageSize),
@@ -270,16 +269,12 @@ export default function CustomTable({
   );
 
   /**
-   * Estado para almacenar las celdas que han sido copiadas (por ejemplo con Ctrl+C).
+   * Estado para almacenar las celdas que han sido copiadas.
    */
   const [copiedCells, setCopiedCells] = useState([]);
 
   /**
-   * Obtiene la información de cada celda (posición, tamaño, rowIndex, colField),
-   * usada por el hook useCellSelection.
-   *
-   * @function getCellsInfo
-   * @returns {Array} - Lista de celdas, cada una con { id, colField, x, y, width, height }.
+   * Obtiene la información de cada celda (posición, tamaño, rowIndex, colField).
    */
   function getCellsInfo() {
     if (!containerRef.current) return [];
@@ -287,29 +282,32 @@ export default function CustomTable({
     const cells = [];
     cellEls.forEach((el) => {
       const rect = el.getBoundingClientRect();
-      const rIndex = parseInt(el.getAttribute('data-row'), 10);
+      const rowIdString = el.getAttribute('data-row');
       const cIndex = parseInt(el.getAttribute('data-col'), 10);
-      if (!isNaN(rIndex) && !isNaN(cIndex) && rect.width > 0 && rect.height > 0) {
-        const rowIndex = table.getRowModel().rows[rIndex]?.id;
-        const colObj = table.getVisibleFlatColumns()[cIndex];
-        if (rowIndex != null && colObj) {
-          cells.push({
-            id: rowIndex,
-            colField: colObj.id,
-            x: rect.x,
-            y: rect.y,
-            width: rect.width,
-            height: rect.height,
-          });
-        }
+
+      // rowIdString vendrá de "row.id", que es un string (e.g. "0", "1", etc.)
+      if (rowIdString == null || isNaN(cIndex) || rect.width <= 0 || rect.height <= 0) {
+        return;
+      }
+
+      const rowId = rowIdString; // Mantener string
+      const colObj = table.getVisibleFlatColumns()[cIndex];
+      if (colObj) {
+        cells.push({
+          id: rowId,
+          colField: colObj.id,
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+        });
       }
     });
     return cells;
   }
 
   /**
-   * Efecto que escucha las teclas de flecha para manejar la selección de celdas
-   * dentro del contenedor.
+   * Efecto que escucha teclas de flecha para la navegación de celdas.
    */
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -325,8 +323,7 @@ export default function CustomTable({
   }, [handleKeyDownArrowSelection]);
 
   /**
-   * Genera un archivo Excel (formato xlsx) con las filas filtradas y columnas visibles.
-   * Descarga el archivo de manera automática en el navegador.
+   * Exportar a Excel.
    */
   const handleDownloadExcel = () => {
     try {
@@ -356,16 +353,12 @@ export default function CustomTable({
   };
 
   /**
-   * Estado para controlar el ancho de columnas,
-   * permitiendo ajuste dinámico en TableSection (o donde sea aplicable).
+   * Estado y setter para el ancho de columnas.
    */
   const [columnWidths, setColumnWidths] = useState({});
 
   /**
-   * Actualiza el ancho de una columna específica.
-   *
-   * @param {string} colId - ID de la columna.
-   * @param {number} width - Nuevo ancho en pixeles.
+   * Actualiza el ancho de una columna.
    */
   const handleSetColumnWidth = (colId, width) => {
     setColumnWidths((prev) => ({
@@ -374,13 +367,6 @@ export default function CustomTable({
     }));
   };
 
-  /**
-   * Render principal del componente:
-   * - Barra de herramientas de filtros (opcional).
-   * - Sección principal de la tabla (TableSection).
-   * - Paginación (Pagination).
-   * - Indicador de carga si `loading` es true.
-   */
   return (
     <div style={{ position: 'relative' }}>
       {showFiltersToolbar && (
@@ -426,6 +412,8 @@ export default function CustomTable({
           setColumnWidth={handleSetColumnWidth}
           sorting={sorting}
           toggleSort={toggleSort}
+          onHideColumns={onHideColumns}
+          onHideRows={onHideRows}
         />
         <Pagination table={table} />
       </div>
