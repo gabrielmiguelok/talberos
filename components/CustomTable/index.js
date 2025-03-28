@@ -12,7 +12,7 @@
  *   5. Paginación.
  *   6. Soporte para selección de celdas y copiado.
  *
- * DEPENDENCIAS Y MÓDULOS EXTERNOS:
+ * DEPENDENCIAS:
  *   - react, xlsx, @tanstack/react-table, etc.
  *   - Hooks personalizados: useDebouncedValue, useCellSelection.
  *   - Componentes auxiliares: FiltersToolbar, TableSection, Pagination.
@@ -22,6 +22,8 @@
  * <CustomTable
  *   data={dataArray}
  *   columnsDef={columnsDefinition}
+ *   // themeMode por defecto "light"
+ *   // O "dark" si quieres iniciar en oscuro
  *   pageSize={50}
  *   loading={isLoading}
  *   filtersToolbarProps={{ ... }}
@@ -58,29 +60,23 @@ import Pagination from './Pagination';
 /**
  * Componente principal: CustomTable
  *
- * @param {Array} data - Arreglo de objetos que representan las filas de la tabla.
- * @param {Array} columnsDef - Definición de columnas,
- *        típicamente generada con buildColumnsFromDefinition() u otro método.
- * @param {number} [pageSize=50] - Cantidad de filas por página.
- * @param {boolean} [loading=false] - Indica si se está realizando una operación (carga, refresco, etc.).
- * @param {Object} [filtersToolbarProps] - Propiedades que se pasan al componente `FiltersToolbar`.
- * @param {Function} [onRefresh] - Función de callback que se ejecuta al presionar el botón de refrescar en la toolbar.
- * @param {boolean} [showFiltersToolbar=true] - Controla si se muestra o no la barra de filtros (FiltersToolbar).
- * @param {Function} [onHideColumns] - Callback para ocultar una o varias columnas. Recibe un array de IDs de columnas.
- * @param {Function} [onHideRows] - Callback para ocultar una o varias filas. Recibe un array de índices (IDs de filas).
+ * @param {Array}  data              - Filas de la tabla.
+ * @param {Array}  columnsDef        - Definición de columnas.
+ * @param {string} [themeMode='light'] - "light" (por defecto) o "dark".
+ * @param {number} [pageSize=50]     - Cant. de filas por página.
+ * @param {boolean} [loading=false]  - Indica si está cargando.
+ * @param {Object} [filtersToolbarProps] - Props p/ `FiltersToolbar`.
+ * @param {Function} [onRefresh]     - Callback del botón "Refrescar".
+ * @param {boolean} [showFiltersToolbar=true] - Muestra la barra de filtros.
+ * @param {Function} [onHideColumns] - Callback para ocultar columnas.
+ * @param {Function} [onHideRows]    - Callback para ocultar filas.
  *
- * @returns {JSX.Element} - Devuelve el componente de tabla con todas sus características.
- *
- * @description
- * Este componente encapsula toda la lógica de filtrado, paginación, exportación a Excel
- * y selección de celdas (copiado). Se apoya en diversas librerías:
- *   - XLSX para la exportación.
- *   - @tanstack/react-table para la gestión de datos tabulares y paginación.
- *   - Hooks y componentes internos para la interfaz y la lógica de selección.
+ * @returns {JSX.Element}
  */
 export default function CustomTable({
   data,
   columnsDef,
+  themeMode = 'light',  // Valor inicial
   pageSize = 50,
   loading,
   filtersToolbarProps,
@@ -89,45 +85,33 @@ export default function CustomTable({
   onHideColumns,
   onHideRows,
 }) {
-  // Manejo de tema oscuro/claro
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  // ---------------------------
+  // 1) Manejo interno del tema
+  // ---------------------------
+  const [internalThemeMode, setInternalThemeMode] = useState(themeMode);
 
-  /**
-   * Efecto que añade o quita la clase 'dark-mode' en la etiqueta <html>.
-   */
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark-mode');
-    } else {
-      document.documentElement.classList.remove('dark-mode');
-    }
-  }, [isDarkMode]);
-
-  /**
-   * Maneja el toggle de tema oscuro/claro.
-   */
-  const handleThemeToggle = () => {
-    setIsDarkMode((prev) => !prev);
+  // Toggle local
+  const handleThemeToggleLocal = () => {
+    setInternalThemeMode((prevMode) => (prevMode === 'dark' ? 'light' : 'dark'));
   };
 
-  /**
-   * Memo para columnas finales a partir de `columnsDef`.
-   * Si columnsDef es nulo o vacío, retorna un array vacío.
-   */
+  // Determina si está en modo oscuro
+  const isDarkMode = internalThemeMode === 'dark';
+
+  // ---------------------------
+  // 2) Definición de columnas
+  // ---------------------------
   const finalColumns = useMemo(() => {
     return columnsDef && columnsDef.length > 0 ? columnsDef : [];
   }, [columnsDef]);
 
   const columnHelper = createColumnHelper();
 
-  /**
-   * Crea columnas, añadiendo una columna inicial para mostrar el índice de la fila.
-   */
   const indexedColumns = useMemo(() => {
     const selectIndexColumn = columnHelper.display({
       id: '_selectIndex',
       header: '',
-      cell: (info) => info.row.index + 1, // Muestra índice basado en posición
+      cell: (info) => info.row.index + 1,
       meta: {
         isSelectIndex: true,
         minWidth: 32,
@@ -135,7 +119,6 @@ export default function CustomTable({
       },
     });
 
-    // Construye columnas para cada definición de usuario.
     const userColumns = finalColumns.map((col) =>
       columnHelper.accessor(col.accessorKey, {
         header: col.header,
@@ -152,34 +135,21 @@ export default function CustomTable({
     return [selectIndexColumn, ...userColumns];
   }, [finalColumns, columnHelper]);
 
-  /**
-   * Referencia al contenedor principal de la tabla (DOM), usada para selección de celdas.
-   */
+  // ---------------------------
+  // 3) Filtros, ordenamiento
+  // ---------------------------
   const containerRef = useRef(null);
 
-  /**
-   * Estado de filtros por columna (columnFilters).
-   * - Estructura sugerida: { nombreCol: { operator, value, min, max, exact, ... }, ... }
-   */
+  // Filtros por columna
   const [columnFilters, setColumnFilters] = useState({});
 
-  /**
-   * Manejo de filtro global (buscador general).
-   * - `tempGlobalFilter`: estado inmediato del input.
-   * - `debouncedGlobalFilter`: valor con retraso de 500ms, para no filtrar en cada pulsación.
-   */
+  // Filtro global (con debounce)
   const [tempGlobalFilter, setTempGlobalFilter] = useState('');
   const debouncedGlobalFilter = useDebouncedValue(tempGlobalFilter, 500);
 
-  /**
-   * Estado para controlar el ordenamiento por columna.
-   * Estructura: { columnId: string, direction: 'asc' | 'desc' | '' }
-   */
+  // Ordenamiento
   const [sorting, setSorting] = useState({ columnId: '', direction: '' });
 
-  /**
-   * Cambia el estado de ordenamiento según la columna seleccionada.
-   */
   const toggleSort = (colId) => {
     setSorting((prev) => {
       if (prev.columnId !== colId) return { columnId: colId, direction: 'desc' };
@@ -189,9 +159,7 @@ export default function CustomTable({
     });
   };
 
-  /**
-   * Efecto para forzar un operador 'range' si el campo es numérico y se detectan valores min/max.
-   */
+  // Forzar operador 'range' si la columna es numérica y hay min/max
   useEffect(() => {
     Object.keys(columnFilters).forEach((colId) => {
       const colDef = finalColumns.find((c) => c.accessorKey === colId);
@@ -210,9 +178,9 @@ export default function CustomTable({
     });
   }, [columnFilters, finalColumns]);
 
-  /**
-   * Aplica el filtrado y ordenamiento a los datos.
-   */
+  // ---------------------------
+  // 4) Filtrado y ordenamiento
+  // ---------------------------
   const filteredData = useMemo(() => {
     const flow = new FilterFlow({
       data,
@@ -230,13 +198,13 @@ export default function CustomTable({
     return filtered3;
   }, [data, finalColumns, columnFilters, debouncedGlobalFilter, sorting]);
 
-  /**
-   * Se crea la instancia de tabla usando React Table (TanStack).
-   */
+  // ---------------------------
+  // 5) Instancia de la tabla
+  // ---------------------------
   const table = useReactTable({
     data: filteredData,
     columns: indexedColumns,
-    getRowId: (_row, rowIndex) => String(rowIndex), // Retornamos un STRING de "0", "1", etc.
+    getRowId: (_row, rowIndex) => String(rowIndex),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     pageCount: Math.ceil(filteredData.length / pageSize),
@@ -249,9 +217,9 @@ export default function CustomTable({
     },
   });
 
-  /**
-   * Hook personalizado para manejo de selección de celdas, copiado, etc.
-   */
+  // ---------------------------
+  // 6) Selección de celdas, copiado
+  // ---------------------------
   const {
     selectedCells,
     setSelectedCells,
@@ -268,14 +236,8 @@ export default function CustomTable({
     table
   );
 
-  /**
-   * Estado para almacenar las celdas que han sido copiadas.
-   */
   const [copiedCells, setCopiedCells] = useState([]);
 
-  /**
-   * Obtiene la información de cada celda (posición, tamaño, rowIndex, colField).
-   */
   function getCellsInfo() {
     if (!containerRef.current) return [];
     const cellEls = containerRef.current.querySelectorAll('[data-row][data-col]');
@@ -285,12 +247,11 @@ export default function CustomTable({
       const rowIdString = el.getAttribute('data-row');
       const cIndex = parseInt(el.getAttribute('data-col'), 10);
 
-      // rowIdString vendrá de "row.id", que es un string (e.g. "0", "1", etc.)
       if (rowIdString == null || isNaN(cIndex) || rect.width <= 0 || rect.height <= 0) {
         return;
       }
 
-      const rowId = rowIdString; // Mantener string
+      const rowId = rowIdString;
       const colObj = table.getVisibleFlatColumns()[cIndex];
       if (colObj) {
         cells.push({
@@ -306,9 +267,7 @@ export default function CustomTable({
     return cells;
   }
 
-  /**
-   * Efecto que escucha teclas de flecha para la navegación de celdas.
-   */
+  // Listener para flechas en containerRef
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!containerRef.current?.contains(document.activeElement)) return;
@@ -322,9 +281,9 @@ export default function CustomTable({
     };
   }, [handleKeyDownArrowSelection]);
 
-  /**
-   * Exportar a Excel.
-   */
+  // ---------------------------
+  // 7) Exportar a Excel
+  // ---------------------------
   const handleDownloadExcel = () => {
     try {
       const exportCols = getExportColumnsDef(finalColumns);
@@ -352,14 +311,11 @@ export default function CustomTable({
     }
   };
 
-  /**
-   * Estado y setter para el ancho de columnas.
-   */
+  // ---------------------------
+  // 8) Ancho de columnas
+  // ---------------------------
   const [columnWidths, setColumnWidths] = useState({});
 
-  /**
-   * Actualiza el ancho de una columna.
-   */
   const handleSetColumnWidth = (colId, width) => {
     setColumnWidths((prev) => ({
       ...prev,
@@ -367,8 +323,16 @@ export default function CustomTable({
     }));
   };
 
+  // -------------------------------------------------------------------------
+  // Render Principal
+  // -------------------------------------------------------------------------
   return (
-    <div style={{ position: 'relative' }}>
+    <div
+      className={`customTableContainer ${
+        isDarkMode ? 'tabla-dark' : 'tabla-light'
+      }`}
+      style={{ position: 'relative' }}
+    >
       {showFiltersToolbar && (
         <FiltersToolbar
           {...(filtersToolbarProps || {})}
@@ -377,7 +341,8 @@ export default function CustomTable({
           onDownloadExcel={handleDownloadExcel}
           onRefresh={onRefresh}
           isDarkMode={isDarkMode}
-          onThemeToggle={handleThemeToggle}
+          // Sobrescribimos el onThemeToggle para manejarlo local:
+          onThemeToggle={handleThemeToggleLocal}
         />
       )}
 

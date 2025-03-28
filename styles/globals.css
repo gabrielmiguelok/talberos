@@ -5,19 +5,21 @@
  * DESCRIPTION:
  *   Hoja de estilo global enfocada en:
  *     - Reset básico
- *     - Variables de modo claro (root) y modo oscuro (.dark-mode)
+ *     - Variables de modo claro (root) y modo oscuro (.tabla-dark) solo local
  *     - Estilos base para tipografía, enlaces y botones
  *     - Estilos específicos de la tabla (selección, copiado, responsividad)
  *
  *   Principios:
  *     - SRP: Se encarga únicamente de los estilos globales y de la tabla.
- *     - Bajo acoplamiento: El modo oscuro/claro está vinculado a la clase .dark-mode,
- *       aplicada localmente según la lógica del componente.
+ *     - Bajo acoplamiento: El modo oscuro/claro se aplica localmente con .tabla-dark
+ *       sobre el contenedor, en lugar de todo el documento.
  *
  * @version 1.0
  ************************************************************************************/
 
-/* Basic CSS reset */
+/* ------------------------------------------------------------------
+   1. Reset básico
+--------------------------------------------------------------------*/
 *,
 *::before,
 *::after {
@@ -26,10 +28,9 @@
   box-sizing: border-box;
 }
 
-/*
-  MODO CLARO (VALORES POR DEFECTO)
-  Definidos en :root
-*/
+/* ------------------------------------------------------------------
+   2. MODO CLARO (VALORES POR DEFECTO) - Definidos en :root
+--------------------------------------------------------------------*/
 :root {
   --font-family-main: 'Work Sans', Arial, sans-serif;
 
@@ -64,19 +65,20 @@
   --color-filterbar-bg: linear-gradient(to right, #1e88e5, #ffffff);
 
   /* Primera columna y encabezado de la tabla */
-  --color-table-index-colgroup: rgba(30,136,229,0.08); /* colgroup 1ª col */
+  --color-table-index-colgroup: #1e88e514; /* colgroup 1ª col */
   --color-table-index-header: rgba(30,136,229,0.25);   /* header 1ª col */
   --color-table-index-body: rgba(30,136,229,0.10);     /* cuerpo 1ª col */
   --color-table-header: rgba(30,136,229,0.15);         /* resto headers */
 }
 
-/*
-  MODO OSCURO (.dark-mode)
-*/
-.dark-mode {
+/* ------------------------------------------------------------------
+   3. MODO OSCURO LOCAL (.tabla-dark)
+   Aplica SOLO dentro del contenedor que use la clase .tabla-dark
+--------------------------------------------------------------------*/
+.tabla-dark {
   color-scheme: dark;
 
-  /* Ajustes fondo y texto */
+  /* Ajustes fondo y texto dentro del contenedor */
   --color-bg: #121212;
   --color-bg-paper: #1F1F1F;
   --color-text: #FFFFFF;
@@ -89,17 +91,38 @@
   --navbar-hover-bg: rgba(255, 255, 255, 0.2);
   --navbar-elevation: 0px 2px 8px rgba(0, 0, 0, 0.7);
 
-  --color-filterbar-bg: linear-gradient(to right, #1e88e5, #64b5f6);
-  --color-table-index-colgroup: rgba(30,136,229,0.15);
-  --color-table-index-header: rgba(30,136,229,0.35);
-  --color-table-index-body: rgba(30,136,229,0.20);
-  --color-table-header: rgba(30,136,229,0.25);
+  --color-filterbar-bg: linear-gradient(to right, #b20076, #121212);
+
+  /* Usamos #b20076 en lugar de #1e88e5 con los mismos canales alfa */
+  --color-table-index-colgroup: #b2007626; /* (0.15 de opacidad) */
+  --color-table-index-header:   #b2007659; /* (0.35 de opacidad) */
+  --color-table-index-body:     #b2007633; /* (0.20 de opacidad) */
+  --color-table-header:         #b2007640; /* (0.25 de opacidad) */
+
+  --color-table-row-highlight:  #444444;
 
   background-color: var(--color-bg);
   color: var(--color-text);
 }
 
-/* BODY aplicado con las variables */
+/*
+  Aseguramos que, dentro de .tabla-dark, la tabla
+  use var(--color-bg-paper) y var(--color-text)
+  en lugar de la default.
+*/
+.tabla-dark .custom-table {
+  background-color: var(--color-bg-paper);
+}
+.tabla-dark .custom-th,
+.tabla-dark .custom-td {
+  border: 1px solid var(--color-divider);
+  background-color: var(--color-bg-paper);
+  color: var(--color-text);
+}
+
+/* ------------------------------------------------------------------
+   4. BODY aplicado con variables por defecto (modo claro)
+--------------------------------------------------------------------*/
 body {
   font-family: var(--font-family-main);
   font-size: var(--font-size-base);
@@ -108,7 +131,9 @@ body {
   line-height: 1.5;
 }
 
-/* Links */
+/* ------------------------------------------------------------------
+   5. Links
+--------------------------------------------------------------------*/
 a {
   color: var(--color-primary);
   text-decoration: none;
@@ -117,7 +142,9 @@ a:hover {
   text-decoration: underline;
 }
 
-/* Base buttons */
+/* ------------------------------------------------------------------
+   6. Base buttons
+--------------------------------------------------------------------*/
 button {
   font-family: inherit;
   cursor: pointer;
@@ -152,7 +179,7 @@ button:disabled {
 }
 
 /* =====================================================================
-   Table Visual Effects: selección y copiado
+   7. Table Visual Effects: selección y copiado
 ===================================================================== */
 .selected-cell-rect {
   outline: 1px solid #a5cce8;
@@ -176,7 +203,7 @@ button:disabled {
 }
 
 /* ----------------------------------------------------------------------
-   Custom Table Styles
+   8. Custom Table Styles (para .custom-table)
 ---------------------------------------------------------------------- */
 .custom-table {
   border-collapse: collapse;
@@ -246,17 +273,4 @@ button:disabled {
   body {
     font-size: 13px;
   }
-}
-
-/* ----------------------------------------------------------------------
-   Overrides para modo oscuro en la tabla
----------------------------------------------------------------------- */
-.dark-mode .custom-table {
-  background-color: var(--color-bg-paper);
-}
-.dark-mode .custom-th,
-.dark-mode .custom-td {
-  border: 1px solid var(--color-divider);
-  background-color: var(--color-bg-paper);
-  color: var(--color-text);
 }

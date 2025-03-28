@@ -9,12 +9,6 @@
  *    - Botón para refrescar datos (opcional).
  *    - Botón para cambiar de tema (siempre visible).
  *
- *   Principios SOLID:
- *    - Responsabilidad única: Este toolbar se centra únicamente en la gestión
- *      de filtros (global) y acciones de exportación, refresco, cambio de tema.
- *    - Bajo acoplamiento: Cada acción (descarga, refresco, cambio de tema) es
- *      controlada externamente por callbacks, manteniendo independencia.
- *
  * @version 1.0
  ************************************************************************************/
 
@@ -25,16 +19,6 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 
 /**
  * Barra de filtros con búsqueda global y acciones adicionales.
- *
- * @param {object}   props - Props del componente.
- * @param {string}   [props.globalFilterValue=''] - Valor actual del filtro global.
- * @param {Function} props.onGlobalFilterChange   - Callback para manejar el nuevo valor del filtro global.
- * @param {Function} [props.onDownloadExcel]      - Callback para descargar en formato Excel (opcional).
- * @param {Function} [props.onRefresh]           - Callback para refrescar datos (opcional).
- * @param {Function} [props.onThemeToggle]       - Callback para alternar entre modo claro y oscuro (opcional).
- * @param {boolean}  [props.isDarkMode=false]     - Indica si el tema actual es oscuro (true) o claro (false).
- *
- * @returns {JSX.Element} Render del toolbar con sus acciones.
  */
 export default function FiltersToolbar({
   globalFilterValue = '',
@@ -44,22 +28,16 @@ export default function FiltersToolbar({
   onThemeToggle,
   isDarkMode = false
 }) {
-  /**
-   * Ejecuta el callback para alternar el tema, si está disponible.
-   */
   const handleThemeToggle = () => {
     if (onThemeToggle) {
       onThemeToggle();
     }
   };
 
-  /**
-   * Estilos generales de la barra de filtros.
-   */
   const toolbarStyle = {
     display: 'flex',
     alignItems: 'center',
-    background: 'var(--color-filterbar-bg)', // Color de fondo (via CSS variables)
+    background: 'var(--color-filterbar-bg)',
     height: '48px',
     minWidth: '1300px',
     padding: '0 8px',
@@ -69,7 +47,7 @@ export default function FiltersToolbar({
 
   return (
     <div style={toolbarStyle}>
-      {/* Campo de filtro global (TextField) */}
+      {/* Filtro global */}
       <TextField
         variant="outlined"
         size="small"
@@ -86,13 +64,13 @@ export default function FiltersToolbar({
             '& input': {
               padding: '2px 6px',
               fontSize: '0.8rem',
-              color: 'var(--color-text)' // color de texto (CSS variables)
+              color: 'var(--color-text)'
             }
           }
         }}
       />
 
-      {/* Botón para descargar Excel (opcional) */}
+      {/* Botón para descargar Excel */}
       {onDownloadExcel && (
         <Tooltip title="Descargar datos en formato Excel" arrow>
           <IconButton
@@ -104,7 +82,6 @@ export default function FiltersToolbar({
             }}
             aria-label="Descargar Excel"
           >
-            {/* Ícono de descarga (SVG) */}
             <svg
               fill="currentColor"
               height="18"
@@ -117,7 +94,7 @@ export default function FiltersToolbar({
         </Tooltip>
       )}
 
-      {/* Botón de modo oscuro/claro (siempre visible) */}
+      {/* Botón modo oscuro/claro */}
       <Tooltip title="Cambiar entre modo claro y oscuro" arrow>
         <IconButton
           onClick={handleThemeToggle}
@@ -135,7 +112,7 @@ export default function FiltersToolbar({
         </IconButton>
       </Tooltip>
 
-      {/* Botón para refrescar datos (opcional) */}
+      {/* Botón refrescar */}
       {onRefresh && (
         <Tooltip title="Refrescar datos" arrow>
           <IconButton
