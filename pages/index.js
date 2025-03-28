@@ -12,7 +12,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { Zoom } from 'react-awesome-reveal';
 import Tilt from 'react-parallax-tilt';
-import Link from 'next/link'; // Importa Link para navegación interna
+import Link from 'next/link'; // Importa Link para navegación interna y externa
 
 // Importaciones de tu tabla y definición de campos
 import dataArray from '../data/registrosData.json';
@@ -46,12 +46,11 @@ const MAIN_PADDING_Y = 10; // padding vertical
 const MAIN_PADDING_X = { xs: 2, md: 6 }; // padding horizontal responsivo
 
 // Estilos para el contenedor de la tabla (Paper)
-const PAPER_BORDER_RADIUS = 3;
+const PAPER_BORDER_RADIUS = 0;
 const PAPER_ELEVATION = 6;
 const PAPER_HOVER_EFFECT = {
   transition: 'transform 0.2s ease-out',
   '&:hover': {
-    transform: 'translateY(-4px)',
   },
 };
 
@@ -232,13 +231,13 @@ export default function IndexTalberos() {
         </Grid>
       </Zoom>
 
-      {/* BOTÓN AMPLIAR (Con enlace interno a /init) */}
-      <Box sx={{ textAlign: 'center', mt: 4 }}>
+      {/* BOTONES */}
+      <Box sx={{ textAlign: 'center', mt: 4, display: 'flex', justifyContent: 'center', gap: 2 }}>
+        {/* Botón para /init */}
         <Link href="/init" style={{ textDecoration: 'none' }}>
           <Button
             variant="contained"
             sx={{
-              // Ajusta estos estilos para hacerlo aún más "sofisticado"
               background: '#FF00AA',
               color: '#FFFFFF',
               fontWeight: 'bold',
@@ -258,6 +257,33 @@ export default function IndexTalberos() {
             Ampliar
           </Button>
         </Link>
+
+        {/* Botón externo al repositorio de Talberos */}
+        <Button
+          variant="contained"
+          component="a"
+          href="https://github.com/gabrielmiguelok/talberos"
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={{
+            background: '#FF00AA',
+            color: '#FFFFFF',
+            fontWeight: 'bold',
+            borderRadius: '5px',
+            px: 4,
+            py: 1.5,
+            fontSize: '1rem',
+            textTransform: 'none',
+            boxShadow: 7,
+            transition: 'transform 0.2s ease-out',
+            '&:hover': {
+              background: '#FF44C4',
+              boxShadow: 7,
+            },
+          }}
+        >
+          Repositorio
+        </Button>
       </Box>
     </Box>
   );
