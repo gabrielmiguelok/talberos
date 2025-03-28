@@ -39,10 +39,10 @@ const DESCRIPTION_LINE_HEIGHT = 1.7;
 const DESCRIPTION_MARGIN_BOTTOM = 4;
 const DESCRIPTION_FONT_SIZE = { xs: '1rem', md: '1.7rem' };
 
-// Estilos para el contenedor principal
+// Estilos para el contenedor principal (el que abarca toda la vista)
 const MAIN_BACKGROUND = 'linear-gradient(135deg, #121212 0%, #1F1F1F 100%)';
 const MAIN_COLOR = '#FFF';
-const MAIN_PADDING_Y = 10; // padding vertical
+const MAIN_PADDING_Y = 10; // padding vertical (en múltiplos de 8px)
 const MAIN_PADDING_X = { xs: 2, md: 6 }; // padding horizontal responsivo
 
 // Estilos para el contenedor de la tabla (Paper)
@@ -50,12 +50,11 @@ const PAPER_BORDER_RADIUS = 0;
 const PAPER_ELEVATION = 6;
 const PAPER_HOVER_EFFECT = {
   transition: 'transform 0.2s ease-out',
-  '&:hover': {
-  },
+  '&:hover': {},
 };
 
-// Estilos para la tabla misma
-const TABLE_MAX_HEIGHT = 400;
+// Altura máxima que queremos para cada tabla
+const TABLE_MAX_HEIGHT = 300;
 
 // Versiones de colores para cada Paper
 const PAPER_LIGHT_BG = '#f7f7f7';
@@ -126,117 +125,161 @@ export default function IndexTalberos() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   return (
+    // Contenedor principal que abarca toda la pantalla
     <Box
       sx={{
-        minHeight: '100vh',
+        // Ocupar toda la ventana y no mostrar scroll global
+        height: '100vh',
+        overflow: 'hidden',
         background: MAIN_BACKGROUND,
         color: MAIN_COLOR,
-        py: MAIN_PADDING_Y,
-        px: MAIN_PADDING_X,
         userSelect: 'none',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      {/* ENCABEZADO: TÍTULO */}
-      <Title
-        text="Talberos"
-        variant={isMobile ? TITLE_VARIANT_MOBILE : TITLE_VARIANT_DESKTOP}
-        color={TITLE_COLOR}
-        fontWeight={TITLE_FONT_WEIGHT}
-        marginBottom={TITLE_MARGIN_BOTTOM}
-      />
+      {/* Contenedor interno para el contenido; sí puede scrollear si excede la altura */}
+      <Box
+        sx={{
+          flex: 1,
+          overflowY: 'auto',
+          py: MAIN_PADDING_Y,
+          px: MAIN_PADDING_X,
+        }}
+      >
+        {/* ENCABEZADO: TÍTULO */}
+        <Title
+          text="Talberos"
+          variant={isMobile ? TITLE_VARIANT_MOBILE : TITLE_VARIANT_DESKTOP}
+          color={TITLE_COLOR}
+          fontWeight={TITLE_FONT_WEIGHT}
+          marginBottom={TITLE_MARGIN_BOTTOM}
+        />
 
-      {/* DESCRIPCIÓN */}
-      <Description
-        text={`Talberos es una librería Open Source (MIT) que ofrece tablas avanzadas en React
-        con una experiencia similar a Excel. Permite filtrado, ordenamiento, edición en vivo,
-        exportación a XLSX y más, sin costos de licencia y con total libertad de
-        personalización.`}
-        color={DESCRIPTION_COLOR}
-        maxWidth={DESCRIPTION_MAX_WIDTH}
-        lineHeight={DESCRIPTION_LINE_HEIGHT}
-        fontSize={DESCRIPTION_FONT_SIZE}
-        marginBottom={DESCRIPTION_MARGIN_BOTTOM}
-      />
+        {/* DESCRIPCIÓN */}
+        <Description
+          text={`Talberos es una librería Open Source (MIT) que ofrece tablas avanzadas en React
+          con una experiencia similar a Excel. Permite filtrado, ordenamiento, edición en vivo,
+          exportación a XLSX y más, sin costos de licencia y con total libertad de
+          personalización.`}
+          color={DESCRIPTION_COLOR}
+          maxWidth={DESCRIPTION_MAX_WIDTH}
+          lineHeight={DESCRIPTION_LINE_HEIGHT}
+          fontSize={DESCRIPTION_FONT_SIZE}
+          marginBottom={DESCRIPTION_MARGIN_BOTTOM}
+        />
 
-      {/* GRID DE TABLEROS */}
-      <Zoom cascade damping={0.1} triggerOnce>
-        <Grid container spacing={6} justifyContent="center" alignItems="flex-start">
-          {/* TABLERO VERSIÓN CLARA */}
-          <Grid item>
-            <Tilt perspective={900} glareEnable glareMaxOpacity={0.15} style={{ height: '100%' }}>
-              <Paper
-                elevation={PAPER_ELEVATION}
-                sx={{
-                  p: 3,
-                  borderRadius: PAPER_BORDER_RADIUS,
-                  backgroundColor: PAPER_LIGHT_BG,
-                  maxWidth: 400,
-                  margin: '0 auto',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  textAlign: 'center',
-                  ...PAPER_HOVER_EFFECT,
-                }}
-              >
-                <Title
-                  text="Versión Clara"
-                  variant="h6"
-                  color="#333"
-                  marginBottom={2}
-                />
-                <Box sx={{ maxHeight: TABLE_MAX_HEIGHT, overflow: 'auto' }}>
-                  <CustomTable
-                    data={dataArray}
-                    columnsDef={columns}
-                    themeMode="light"
+        {/* GRID DE TABLEROS */}
+        <Zoom cascade damping={0.1} triggerOnce>
+          <Grid container spacing={6} justifyContent="center" alignItems="flex-start">
+            {/* TABLERO VERSIÓN CLARA */}
+            <Grid item>
+              <Tilt perspective={900} glareEnable glareMaxOpacity={0.15} style={{ height: '100%' }}>
+                <Paper
+                  elevation={PAPER_ELEVATION}
+                  sx={{
+                    p: 3,
+                    borderRadius: PAPER_BORDER_RADIUS,
+                    backgroundColor: PAPER_LIGHT_BG,
+                    maxWidth: 450,
+                    margin: '0 auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    textAlign: 'center',
+                    ...PAPER_HOVER_EFFECT,
+                  }}
+                >
+                  <Title
+                    text="Versión Clara"
+                    variant="h6"
+                    color="#333"
+                    marginBottom={2}
                   />
-                </Box>
-              </Paper>
-            </Tilt>
-          </Grid>
+                  {/* Scroll interno sólo para la tabla => pasamos containerHeight */}
+                  <Box sx={{ maxHeight: TABLE_MAX_HEIGHT, overflow: 'hidden' }}>
+                    <CustomTable
+                      data={dataArray}
+                      columnsDef={columns}
+                      themeMode="light"
+                      containerHeight={`${TABLE_MAX_HEIGHT}px`}
+                    />
+                  </Box>
+                </Paper>
+              </Tilt>
+            </Grid>
 
-          {/* TABLERO VERSIÓN OSCURA */}
-          <Grid item>
-            <Tilt perspective={900} glareEnable glareMaxOpacity={0.15} style={{ height: '100%' }}>
-              <Paper
-                elevation={PAPER_ELEVATION}
-                sx={{
-                  p: 3,
-                  borderRadius: PAPER_BORDER_RADIUS,
-                  backgroundColor: PAPER_DARK_BG,
-                  maxWidth: 450,
-                  margin: '0 auto',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  textAlign: 'center',
-                  ...PAPER_HOVER_EFFECT,
-                }}
-              >
-                <Title
-                  text="Versión Oscura"
-                  variant="h6"
-                  color="#FF00AA"
-                  marginBottom={2}
-                />
-                <Box sx={{ maxHeight: TABLE_MAX_HEIGHT, overflow: 'auto' }}>
-                  <CustomTable
-                    data={dataArray}
-                    columnsDef={columns}
-                    themeMode="dark"
+            {/* TABLERO VERSIÓN OSCURA */}
+            <Grid item>
+              <Tilt perspective={900} glareEnable glareMaxOpacity={0.15} style={{ height: '100%' }}>
+                <Paper
+                  elevation={PAPER_ELEVATION}
+                  sx={{
+                    p: 3,
+                    borderRadius: PAPER_BORDER_RADIUS,
+                    backgroundColor: PAPER_DARK_BG,
+                    maxWidth: 450,
+                    margin: '0 auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    textAlign: 'center',
+                    ...PAPER_HOVER_EFFECT,
+                  }}
+                >
+                  <Title
+                    text="Versión Oscura"
+                    variant="h6"
+                    color="#FF00AA"
+                    marginBottom={2}
                   />
-                </Box>
-              </Paper>
-            </Tilt>
+                  {/* Igualmente, scroll interno sólo para la tabla */}
+                  <Box sx={{ maxHeight: TABLE_MAX_HEIGHT, overflow: 'hidden' }}>
+                    <CustomTable
+                      data={dataArray}
+                      columnsDef={columns}
+                      themeMode="dark"
+                      containerHeight={`${TABLE_MAX_HEIGHT}px`}
+                    />
+                  </Box>
+                </Paper>
+              </Tilt>
+            </Grid>
           </Grid>
-        </Grid>
-      </Zoom>
+        </Zoom>
 
-      {/* BOTONES */}
-      <Box sx={{ textAlign: 'center', mt: 4, display: 'flex', justifyContent: 'center', gap: 2 }}>
-        {/* Botón para /init */}
-        <Link href="/init" style={{ textDecoration: 'none' }}>
+        {/* BOTONES */}
+        <Box sx={{ textAlign: 'center', mt: 4, display: 'flex', justifyContent: 'center', gap: 2 }}>
+          {/* Botón para /init */}
+          <Link href="/init" style={{ textDecoration: 'none' }}>
+            <Button
+              variant="contained"
+              sx={{
+                background: '#FF00AA',
+                color: '#FFFFFF',
+                fontWeight: 'bold',
+                borderRadius: '5px',
+                px: 4,
+                py: 1.5,
+                fontSize: '1rem',
+                textTransform: 'none',
+                boxShadow: 7,
+                transition: 'transform 0.2s ease-out',
+                '&:hover': {
+                  background: '#FF44C4',
+                  boxShadow: 7,
+                },
+              }}
+            >
+              Ampliar
+            </Button>
+          </Link>
+
+          {/* Botón externo al repositorio de Talberos */}
           <Button
             variant="contained"
+            component="a"
+            href="https://github.com/gabrielmiguelok/talberos"
+            target="_blank"
+            rel="noopener noreferrer"
             sx={{
               background: '#FF00AA',
               color: '#FFFFFF',
@@ -254,36 +297,9 @@ export default function IndexTalberos() {
               },
             }}
           >
-            Ampliar
+            Repositorio
           </Button>
-        </Link>
-
-        {/* Botón externo al repositorio de Talberos */}
-        <Button
-          variant="contained"
-          component="a"
-          href="https://github.com/gabrielmiguelok/talberos"
-          target="_blank"
-          rel="noopener noreferrer"
-          sx={{
-            background: '#FF00AA',
-            color: '#FFFFFF',
-            fontWeight: 'bold',
-            borderRadius: '5px',
-            px: 4,
-            py: 1.5,
-            fontSize: '1rem',
-            textTransform: 'none',
-            boxShadow: 7,
-            transition: 'transform 0.2s ease-out',
-            '&:hover': {
-              background: '#FF44C4',
-              boxShadow: 7,
-            },
-          }}
-        >
-          Repositorio
-        </Button>
+        </Box>
       </Box>
     </Box>
   );

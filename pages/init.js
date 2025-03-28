@@ -18,8 +18,9 @@ export default function RegistrosTest() {
   return (
     <div style={{ padding: 0 }}>
       <CustomTable
-        data={dataArray}   // Datos del archivo JSON
+        data={dataArray}    // Datos del archivo JSON
         columnsDef={columns}
+        containerHeight="90vh"
       />
     </div>
   );

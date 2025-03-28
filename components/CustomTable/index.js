@@ -4,14 +4,14 @@
  *
  * DESCRIPCIÓN:
  *   - Componente principal que orquesta la tabla y la barra de filtros.
- *   - La paginación se ha movido a `TableView`, para centralizar
- *     la lógica de scroll y selección.
+ *   - La paginación se ha movido a `TableView` (aquí llamado `TableSection`),
+ *     para centralizar la lógica de scroll y selección.
  *
  * FUNCIONALIDADES:
  *   - Configura el tema (claro/oscuro).
  *   - Usa `useCustomTableLogic` para obtener la instancia de la tabla (sorting, filtering, etc.).
  *   - Opcionalmente muestra la barra de filtros (FiltersToolbar).
- *   - Renderiza `TableView`, que ahora incluye la paginación sticky.
+ *   - Renderiza `TableView` (aquí `TableSection`), que incluye la paginación sticky.
  *
  * PARÁMETROS (props):
  *   - data (array): filas de la tabla.
@@ -25,7 +25,11 @@
  *   - onHideColumns (function): callback para ocultar columnas.
  *   - onHideRows (function): callback para ocultar filas.
  *
- * @version 1.0
+ *   - containerHeight (string): altura (o altura máxima) que queremos usar
+ *     en TableView (ej: "500px", "60vh", "calc(100vh - 100px)", etc.).
+ *     Por defecto, "400px".
+ *
+ * @version 1.2
  */
 
 import React, { useRef, useEffect, useState } from 'react';
@@ -33,20 +37,28 @@ import { useCustomTableLogic } from '../hooks/useCustomTableLogic';
 import { useThemeMode } from '../hooks/useThemeMode';
 import useCellSelection from '../hooks/useCellSelection';
 
+// Barra de filtros (parte superior)
 import FiltersToolbar from '../toolbar/FiltersToolbar';
-import TableSection from '../TableView'; // <-- La paginación está adentro de TableView
+
+// El componente que renderiza la tabla real y la paginación sticky
+import TableSection from '../TableView';
 
 export default function CustomTable({
   data,
   columnsDef,
   themeMode = 'light',
-  pageSize = 10,
+  pageSize = 50,
   loading = false,
   filtersToolbarProps,
   onRefresh,
   showFiltersToolbar = true,
   onHideColumns,
   onHideRows,
+  /**
+   * Nuevo prop: altura a usar en TableSection.
+   * Por defecto, "400px" si no se pasa nada.
+   */
+  containerHeight = '400px',
 }) {
   //
   // 1) Modo de tema (claro/oscuro)
@@ -77,10 +89,10 @@ export default function CustomTable({
 
   //
   // 3) Selección de celdas y copiado
-  //    (Se mantiene para orquestar, aunque el contenedor final
-  //     esté en TableView)
+  //    (Se mantiene aquí para orquestar, aunque la UI esté en TableView)
   //
   const containerRef = useRef(null);
+
   const {
     selectedCells,
     setSelectedCells,
@@ -93,7 +105,10 @@ export default function CustomTable({
 
   const [copiedCells, setCopiedCells] = useState([]);
 
-  // Función requerida por useCellSelection para mapear DOM -> coordenadas de celdas
+  /**
+   * getCellsInfo():
+   * Requerida por useCellSelection para mapear el DOM a coordenadas de celdas
+   */
   function getCellsInfo() {
     if (!containerRef.current) return [];
     const cellEls = containerRef.current.querySelectorAll('[data-row][data-col]');
@@ -141,14 +156,16 @@ export default function CustomTable({
   //
   return (
     <>
-      {/* Contenedor general con clase de tema */}
+      {/* Contenedor general con clase de tema (sin forzar altura aquí) */}
       <div
         className={`customTableContainer ${isDarkMode ? 'tabla-dark' : 'tabla-light'}`}
         style={{
           display: 'flex',
           flexDirection: 'column',
-          height: '100%',
           position: 'relative',
+          // Notamos que aquí NO usamos "height: containerHeight"
+          // para no forzar la altura de todo el componente.
+          // Sólo lo pasaremos a TableSection.
         }}
       >
         {/* Barra de filtros (opcional) con sticky top */}
@@ -175,20 +192,21 @@ export default function CustomTable({
           </div>
         )}
 
-        {/* Contenedor para la tabla + paginación (están en TableView) */}
+        {/* Contenedor para la tabla + paginación (TableView) */}
         <div
           ref={containerRef}
           style={{
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            // Ya no establecemos overflow ni paddingBottom aquí,
-            // pues lo maneja TableView internamente
             position: 'relative',
+            // No forzamos altura, dejamos que TableView la maneje
           }}
         >
           <TableSection
             table={table}
+            // Le pasamos la altura deseada
+            containerHeight={containerHeight}
             // Filtros por columna
             columnFilters={columnFilters}
             updateColumnFilter={(colId, filterValue) =>
