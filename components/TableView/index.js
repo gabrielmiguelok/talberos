@@ -2,20 +2,29 @@
  * Archivo: /components/registros/TableView/index.js
  * LICENSE: MIT
  *
- * DESCRIPCIÓN GENERAL:
- *   Este sub-componente se encarga de renderizar la tabla HTML principal,
- *   incluyendo:
- *    - Selección de celdas (drag, shift-click, flechas, etc.) y copiado automático.
- *    - Menús contextuales (para copiar/ocultar columnas/filas).
- *    - Indicadores de carga y “sin resultados”.
- *    - Integración con un hook de edición en línea (useInlineCellEdit).
- *    - Filtrado por columna (Popover).
- *    - Redimensionado de columnas.
+ * DESCRIPCIÓN GENERAL (EXTENDIDA):
+ *   Este sub-componente se encarga de renderizar la tabla HTML principal y la barra
+ *   de paginación (ambas sticky), incluyendo toda la lógica necesaria para:
  *
- *   El cambio principal es hacer que el <thead> sea "sticky" (position: sticky; top: 0)
- *   para que la fila de encabezados permanezca visible al hacer scroll.
+ *    1. Selección de celdas (drag, shift-click, flechas) y copiado automático (auto-copy).
+ *    2. Menús contextuales (copiar, ocultar columnas/filas).
+ *    3. Indicadores de carga (spinner) y de “sin resultados” (overlay).
+ *    4. Integración con un hook de edición en línea (useInlineCellEdit).
+ *    5. Filtrado por columna (Popover).
+ *    6. Redimensionado de columnas (hook useColumnResize).
+ *    7. Scroll y vista “sticky”:
+ *       - `<thead>` con `position: sticky; top: 0;`
+ *       - Barra de paginación al final con `position: sticky; bottom: 0;`
  *
- * @version 4.0
+ *   Principios SOLID aplicados:
+ *     - SRP: Este componente se encarga de la VISTA + interacción de la tabla y paginación.
+ *     - DIP: Recibe definiciones y callbacks vía props, sin acoplamientos forzados.
+ *
+ *   REQUISITOS DE LAYOUT:
+ *     - Un padre con `height: 100%` (o la altura deseada) para que `flex: 1; overflow: auto;`
+ *       funcione y se vea el sticky en la cabecera y paginación.
+ *
+ * @version 5.1
  ************************************************************************************/
 
 import React, { useRef, useState, useEffect, useLayoutEffect } from 'react';
@@ -39,6 +48,7 @@ import useTableViewContextMenu from './contextMenu/useTableViewContextMenu';
 
 // Componentes relacionados
 import ColumnFilterConfiguration from '../ColumnConfiguration';
+import Pagination from './Pagination'; // Barra de paginación incluida
 
 // Constantes y utilidades
 import {
@@ -46,41 +56,54 @@ import {
   COPIED_CELL_CLASS,
 } from '../tableViewVisualEffects';
 
-const ROW_HEIGHT = 20;
-const LOADING_TEXT = 'Cargando datos...';
-const NO_RESULTS_TEXT = 'Sin resultados';
-const AUTO_COPY_DELAY = 1000;
+/** Configuraciones de tabla */
+const ROW_HEIGHT = 20;                        // Alto en px por fila
+const LOADING_TEXT = 'Cargando datos...';     // Texto “loading”
+const NO_RESULTS_TEXT = 'Sin resultados';     // Texto “sin resultados”
+const AUTO_COPY_DELAY = 1000;                // Milisegundos para auto-copiado
 
 /**
  * safeDisplayValue
- *  - Convierte un valor a una representación segura en texto, evitando mostrar null
- *    o [object Object].
- *  - Si es un elemento React, se retorna tal cual.
- *  - Si es un objeto, se hace JSON.stringify.
+ * -------------------------------------------------------------------------
+ * Convierte un valor a una representación segura en texto/JSX, evitando
+ * mostrar "null", "undefined" o "[object Object]".
  */
 function safeDisplayValue(val) {
   if (val == null) return '';
   if (typeof val === 'object') {
-    // Podría ser un elemento React (val.$$typeof)
     if (val.$$typeof) {
-      return val; // Es JSX, lo retornamos tal cual
+      // Es un elemento React (JSX)
+      return val;
     }
+    // Objeto normal
     return JSON.stringify(val);
   }
+  // Primitivo
   return String(val);
 }
 
 /**
  * TableView
  * -----------------------------------------------------------------------------
- * Componente principal para renderizar la tabla, con:
- *   • Selección de celdas (drag, shift-click, flechas) y copiado automático.
- *   • Menú contextual (copiar, ocultar col/filas).
- *   • Edición en línea de celdas (useInlineCellEdit).
- *   • Filtrado por columna (Popover).
- *   • Redimensionado de columnas.
- *   • Indicadores de carga y de “sin resultados”.
- *   • <thead> sticky para mantener la fila de encabezados fija.
+ * Muestra la tabla HTML principal y la barra de paginación sticky. Mantiene:
+ *   - Cabecera sticky en top: 0
+ *   - Pagina sticky en bottom: 0
+ * Y el scroll ocurre en la zona intermedia de las filas.
+ *
+ * @param {object}   props.table                - Instancia de la tabla (react-table).
+ * @param {boolean}  props.loading              - Indica si está cargando datos.
+ * @param {object}   props.columnFilters        - Filtros por columna.
+ * @param {Function} props.updateColumnFilter   - Actualizador de filtro por columna.
+ * @param {Array}    props.columnsDef           - Definición de columnas.
+ * @param {Array}    props.originalColumnsDef   - Def. original de columnas (width, etc.).
+ * @param {object}   props.columnWidths         - Ancho de columnas (colId -> width).
+ * @param {Function} props.setColumnWidth       - Setter para ancho de columna.
+ * @param {Function} [props.onHideColumns]      - Callback p/ ocultar columnas.
+ * @param {Function} [props.onHideRows]         - Callback p/ ocultar filas.
+ * @param {object}   props.sorting              - Ordenamiento { columnId, direction }.
+ * @param {Function} props.toggleSort           - Cambia el ordenamiento.
+ *
+ * @returns {JSX.Element} - Render de la tabla + paginación (ambas sticky).
  */
 export default function TableView({
   table,
@@ -96,22 +119,18 @@ export default function TableView({
   sorting,
   toggleSort,
 }) {
-  // Referencia interna al contenedor principal (para capturar clicks/teclas)
+  // 1) Referencia principal para scroll, clicks/teclas/arrastre
   const containerRef = useRef(null);
 
-  // Filas procesadas por React Table (paginación, filtrado, etc.)
+  // 2) Filas y data actual
   const rows = table.getRowModel().rows;
-  // Data visible actual (filtrada/paginada)
   const displayedData = rows.map((r) => r.original);
 
-  // -------------------------------------
-  // 1) Hook de selección de celdas
-  // -------------------------------------
+  // 3) Selección de celdas: definimos getCellsInfo y usamos useCellSelection
   function getCellsInfo() {
     if (!containerRef.current) return [];
     const cellEls = containerRef.current.querySelectorAll('[data-row][data-col]');
     const cells = [];
-
     cellEls.forEach((el) => {
       const rect = el.getBoundingClientRect();
       const rowIdString = el.getAttribute('data-row');
@@ -120,7 +139,6 @@ export default function TableView({
       if (rowIdString == null || isNaN(cIndex) || rect.width <= 0 || rect.height <= 0) {
         return;
       }
-
       const rowId = rowIdString;
       const colObj = table.getVisibleFlatColumns()[cIndex];
       if (colObj) {
@@ -147,12 +165,9 @@ export default function TableView({
     handleKeyDownArrowSelection,
   } = useCellSelection(containerRef, getCellsInfo, displayedData, columnsDef, table);
 
-  // -------------------------------------
-  // 2) Teclas de flechas: mover selección
-  // -------------------------------------
+  // 4) Flechas: mover selección
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Solo si el contenedor está enfocado (o un hijo)
       if (!containerRef.current?.contains(document.activeElement)) return;
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         handleKeyDownArrowSelection(e);
@@ -164,9 +179,7 @@ export default function TableView({
     };
   }, [handleKeyDownArrowSelection]);
 
-  // -------------------------------------
-  // 3) Copiado (Ctrl + C) y auto-copiado
-  // -------------------------------------
+  // 5) Copiado (Ctrl + C) y auto-copiado
   const { copiedCells, setCopiedCells } = useClipboardCopy(
     containerRef,
     selectedCells,
@@ -181,12 +194,12 @@ export default function TableView({
       return;
     }
     try {
-      // Mapeamos rowId -> rowData
+      // Map rowId -> rowData
       const dataMap = new Map();
       rows.forEach((r) => {
         dataMap.set(r.id, r.original);
       });
-
+      // Recolectar celdas
       const rowsMap = new Map();
       cellsToCopy.forEach((cell) => {
         const rowData = dataMap.get(cell.id);
@@ -195,15 +208,13 @@ export default function TableView({
         rowArray.push(rowData[cell.colField]);
         rowsMap.set(cell.id, rowArray);
       });
-
-      // Convertir a TSV
+      // TSV
       const tsvLines = [];
       for (const [, rowCells] of rowsMap.entries()) {
         tsvLines.push(rowCells.join('\t'));
       }
       const tsvContent = tsvLines.join('\n');
-
-      // Copiar al portapapeles
+      // Copiar
       await navigator.clipboard.writeText(tsvContent);
       setCopiedCells([...cellsToCopy]);
     } catch (error) {
@@ -211,7 +222,10 @@ export default function TableView({
     }
   }
 
+  // Auto-copy tras un retardo
   const autoCopyTimerRef = useRef(null);
+
+  // 6) Edición en línea
   const {
     editingCell,
     editingValue,
@@ -240,18 +254,14 @@ export default function TableView({
     };
   }, [selectedCells, editingCell]);
 
-  // -------------------------------------
-  // 4) Redimensionar columnas
-  // -------------------------------------
+  // 7) Redimensionar columnas
   const { handleMouseDownResize } = useColumnResize({
     columnWidths,
     setColumnWidth,
     originalColumnsDef,
   });
 
-  // -------------------------------------
-  // 5) Menú contextual (copiar/ocultar)
-  // -------------------------------------
+  // 8) Menú contextual (copiar, ocultar col/filas)
   const {
     contextMenu,
     clickedHeaderIndex,
@@ -270,9 +280,7 @@ export default function TableView({
     rows,
   });
 
-  // -------------------------------------
-  // 6) Popover de filtros por columna
-  // -------------------------------------
+  // 9) Popover de filtros por columna
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuColumnId, setMenuColumnId] = useState(null);
 
@@ -286,9 +294,7 @@ export default function TableView({
     setMenuColumnId(null);
   };
 
-  // -------------------------------------
-  // 7) Lógica de arrastre para selección
-  // -------------------------------------
+  // 10) Lógica de arrastre para selección (columnas/filas)
   const [isDraggingColumns, setIsDraggingColumns] = useState(false);
   const [startColIndex, setStartColIndex] = useState(null);
   const [isDraggingRows, setIsDraggingRows] = useState(false);
@@ -314,7 +320,6 @@ export default function TableView({
   const handleHeaderTouchStart = (e, colIndex, colId) => {
     if (colId === '_selectIndex') return;
     if (e.target.classList.contains('resize-handle')) return;
-
     if (e.touches.length === 1) {
       dragStateRef.current.isDraggingCols = true;
       dragStateRef.current.startColIndex = colIndex;
@@ -326,9 +331,7 @@ export default function TableView({
   const handleRowIndexMouseDown = (e, rowIndex, rowId) => {
     e.stopPropagation();
     e.preventDefault();
-    // Seleccionar la fila entera de inmediato
     selectEntireRow(rowIndex, rowId);
-
     dragStateRef.current.isDraggingRows = true;
     dragStateRef.current.startRowIndex = rowIndex;
     setIsDraggingRows(true);
@@ -355,15 +358,11 @@ export default function TableView({
         startColIndex: stCol,
         startRowIndex: stRow,
       } = dragStateRef.current;
-
       if (!containerRef.current) return;
 
       if (isDraggingCols) {
         e.preventDefault();
-        // Detectar la columna actual
-        const colEls = containerRef.current.querySelectorAll(
-          'thead tr:first-child th'
-        );
+        const colEls = containerRef.current.querySelectorAll('thead tr:first-child th');
         let currentIndex = null;
         colEls.forEach((el, i) => {
           const rect = el.getBoundingClientRect();
@@ -381,7 +380,6 @@ export default function TableView({
         }
       } else if (isDraggingRows) {
         e.preventDefault();
-        // Detectar la fila actual
         const rowIndexCells = containerRef.current.querySelectorAll(
           'tbody tr td[data-col="0"]'
         );
@@ -464,6 +462,7 @@ export default function TableView({
     selectEntireColumn(colIndex, colId);
   };
 
+  // Funciones auxiliares para seleccionar rangos, fila entera, etc.
   function selectColumnRange(start, end) {
     const min = Math.min(start, end);
     const max = Math.max(start, end);
@@ -535,331 +534,356 @@ export default function TableView({
     setFocusCell({ rowIndex: 0, colIndex: 1 });
   }
 
-  // -------------------------------------
-  // 8) Highlight de fila al hacer click
-  // -------------------------------------
+  // Resaltar fila al hacer click
   const [highlightedRowIndex, setHighlightedRowIndex] = useState(null);
   const handleCellClick = (rowIndex) => {
     setHighlightedRowIndex(rowIndex);
   };
 
-  // -------------------------------------
-  // 9) Ancho de columnas
-  // -------------------------------------
+  // Ancho de columnas
   function getColumnDefWidth(colId) {
     const col = originalColumnsDef.find((c) => c.accessorKey === colId);
     return col?.width ?? 80;
   }
 
-  // -------------------------------------
-  // Render principal
-  // -------------------------------------
+  /**
+   * Layout con:
+   *  - Contenedor padre: display: flex, flex-direction: column, height 100% (heredado).
+   *  - Contenedor scrolleable para la tabla (flex: 1; overflow: auto).
+   *  - Thead sticky (top: 0).
+   *  - Barra de paginación sticky en la parte inferior (bottom: 0).
+   */
   return (
     <Box
-      ref={containerRef}
-      onContextMenu={handleContextMenu}
+      // Contenedor padre en modo columna, que llenará el alto disponible
       sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',      // Asegúrate de que su padre también tenga un height estable
         position: 'relative',
-        userSelect: 'none',
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '12px',
-        backgroundColor: 'var(--color-bg-paper)',
-        outline: 'none',
-        width: '100%',
-        // Ajusta a tu gusto para scroll dinámico
-        maxHeight: '1000px',
-        overflowX: 'auto',
-        overflowY: 'auto',
       }}
-      tabIndex={0}
     >
-      {/* Indicador de carga */}
-      {loading && (
-        <Box
-          sx={{
-            textAlign: 'center',
-            padding: '32px',
-            color: 'var(--color-text)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            position: 'absolute',
-            inset: 0,
-            backgroundColor: 'var(--color-bg-paper)',
-            zIndex: 9999,
-          }}
-        >
-          <CircularProgress
-            sx={{ color: 'var(--color-primary)', marginBottom: '8px' }}
-          />
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            {LOADING_TEXT}
-          </Typography>
-        </Box>
-      )}
+      {/* Contenedor SCROLLEABLE para la tabla */}
+      <Box
+        ref={containerRef}
+        onContextMenu={handleContextMenu}
+        sx={{
+          flex: 1,
+          overflow: 'auto',
+          position: 'relative',
+          userSelect: 'none',
+          fontFamily: 'Arial, sans-serif',
+          fontSize: '12px',
+          backgroundColor: 'var(--color-bg-paper)',
+          outline: 'none',
+          width: '100%',
+        }}
+        tabIndex={0}
+      >
+        {/* Overlay de “cargando” */}
+        {loading && (
+          <Box
+            sx={{
+              textAlign: 'center',
+              padding: '32px',
+              color: 'var(--color-text)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: 'var(--color-bg-paper)',
+              zIndex: 9999,
+            }}
+          >
+            <CircularProgress
+              sx={{ color: 'var(--color-primary)', marginBottom: '8px' }}
+            />
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              {LOADING_TEXT}
+            </Typography>
+          </Box>
+        )}
 
-      {/* Mensaje sin resultados */}
-      {!loading && rows.length === 0 && (
-        <Box
-          sx={{
-            textAlign: 'center',
-            padding: '32px',
-            color: 'var(--color-text)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            position: 'absolute',
-            inset: 0,
-            backgroundColor: 'var(--color-bg-paper)',
-            zIndex: 9999,
-          }}
-        >
-          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem' }}>
-            {NO_RESULTS_TEXT}
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            Modifica los filtros o la búsqueda para ver más resultados.
-          </Typography>
-        </Box>
-      )}
+        {/* Overlay de “sin resultados” */}
+        {!loading && rows.length === 0 && (
+          <Box
+            sx={{
+              textAlign: 'center',
+              padding: '32px',
+              color: 'var(--color-text)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: 'var(--color-bg-paper)',
+              zIndex: 9999,
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem' }}>
+              {NO_RESULTS_TEXT}
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Modifica los filtros o la búsqueda para ver más resultados.
+            </Typography>
+          </Box>
+        )}
 
-      <table className="custom-table">
-        <colgroup>
-          {table.getVisibleFlatColumns().map((col, cIndex) => {
-            const width = columnWidths[col.id] ?? getColumnDefWidth(col.id);
-            const isIndexCol = col.id === '_selectIndex';
-            return (
-              <col
-                key={col.id}
-                data-colindex={cIndex}
-                style={{
-                  width: `${width}px`,
-                  backgroundColor: isIndexCol
-                    ? 'var(--color-table-index-colgroup)'
-                    : 'transparent',
-                }}
-              />
-            );
-          })}
-        </colgroup>
+        {/* TABLA HTML */}
+        <table className="custom-table" style={{ width: '100%' }}>
+          <colgroup>
+            {table.getVisibleFlatColumns().map((col, cIndex) => {
+              const width = columnWidths[col.id] ?? getColumnDefWidth(col.id);
+              const isIndexCol = col.id === '_selectIndex';
+              return (
+                <col
+                  key={col.id}
+                  data-colindex={cIndex}
+                  style={{
+                    width: `${width}px`,
+                    backgroundColor: isIndexCol
+                      ? 'var(--color-table-index-colgroup)'
+                      : 'transparent',
+                  }}
+                />
+              );
+            })}
+          </colgroup>
 
-        {/* THEAD sticky */}
-        <thead
-          style={{
-            position: 'sticky',
-            top: 0,
-            zIndex: 10,
-            backgroundColor: "var(--color-bg-paper)",
-          }}
-        >
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header, hIndex) => {
-                const colId = header.column.id;
-                const isIndexCol = colId === '_selectIndex';
-
-                return (
-                  <th
-                    key={header.id}
-                    className="custom-th"
-                    data-header-index={hIndex}
-                    style={{
-                      backgroundColor: isIndexCol
-                        ? 'var(--color-table-index-header)'
-                        : 'var(--color-table-header)',
-                      cursor: 'pointer',
-                    }}
-                    onClick={(e) => handleHeaderClick(e, hIndex, colId)}
-                    onMouseDown={(e) => handleHeaderMouseDown(e, hIndex, colId)}
-                    onTouchStart={(e) => handleHeaderTouchStart(e, hIndex, colId)}
-                  >
-                    <div className="column-header-content">
-                      <span
-                        className="column-header-label"
-                        style={{ fontWeight: isIndexCol ? 'bold' : 'normal' }}
-                        title={String(header.column.columnDef.header || '')}
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : header.column.columnDef.header}
-                      </span>
-
-                      {/* Ícono filtro en cabecera (excepto col índice) */}
-                      {!isIndexCol && (
-                        <div className="column-header-actions">
-                          <IconButton
-                            size="small"
-                            onClick={(evt) => {
-                              evt.stopPropagation();
-                              handleOpenMenu(evt, colId);
-                            }}
-                            sx={{
-                              color: 'var(--color-text)',
-                              padding: '2px',
-                            }}
-                          >
-                            <FilterListIcon
-                              fontSize="inherit"
-                              style={{ fontSize: '14px' }}
-                            />
-                          </IconButton>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Manija de resize */}
-                    <div
-                      className="resize-handle"
-                      onMouseDown={(evt) => {
-                        evt.stopPropagation();
-                        handleMouseDownResize(evt, colId);
-                      }}
-                    />
-                  </th>
-                );
-              })}
-            </tr>
-          ))}
-        </thead>
-
-        <tbody>
-          {rows.map((row, rIndex) => {
-            const rowId = row.id;
-            const rowIsHighlighted = highlightedRowIndex === rIndex;
-
-            return (
-              <tr
-                key={rowId}
-                style={{
-                  height: ROW_HEIGHT,
-                  backgroundColor: rowIsHighlighted
-                    ? 'var(--color-table-row-highlight, #fff9e6)'
-                    : 'transparent',
-                }}
-              >
-                {row.getVisibleCells().map((cell, cIndex) => {
-                  const colId = cell.column.id;
+          {/* THEAD sticky */}
+          <thead
+            style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 10,
+              backgroundColor: 'var(--color-bg-paper)',
+            }}
+          >
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header, hIndex) => {
+                  const colId = header.column.id;
                   const isIndexCol = colId === '_selectIndex';
 
-                  // ¿Está en la selección?
-                  const isSelected = selectedCells.some(
-                    (sc) => sc.id === rowId && sc.colField === colId
-                  );
-                  const isCopied = copiedCells.some(
-                    (cc) => cc.id === rowId && cc.colField === colId
-                  );
-
-                  const inEditingMode = isEditingCell(rowId, colId);
-                  const rawValue = cell.getValue();
-                  const customRender = cell.column.columnDef.cell
-                    ? cell.column.columnDef.cell({
-                        getValue: () => rawValue,
-                        column: cell.column,
-                        row: cell.row,
-                        table,
-                      })
-                    : rawValue;
-                  const displayValue = safeDisplayValue(customRender);
-
-                  let cellContent;
-                  if (inEditingMode) {
-                    cellContent = (
-                      <input
-                        type="text"
-                        autoFocus
-                        value={editingValue}
-                        onChange={handleChange}
-                        onKeyDown={handleKeyDown}
-                        onBlur={handleBlur}
-                        style={{
-                          width: '100%',
-                          border: 'none',
-                          outline: 'none',
-                          padding: 0,
-                          margin: 0,
-                          backgroundColor: 'transparent',
-                        }}
-                      />
-                    );
-                  } else {
-                    cellContent = displayValue;
-                  }
-
                   return (
-                    <td
-                      key={cell.id}
-                      data-row={rIndex}
-                      data-col={cIndex}
-                      className={`custom-td ${
-                        isSelected ? SELECTED_CELL_CLASS : ''
-                      } ${isCopied ? COPIED_CELL_CLASS : ''}`}
+                    <th
+                      key={header.id}
+                      className="custom-th"
+                      data-header-index={hIndex}
                       style={{
                         backgroundColor: isIndexCol
-                          ? 'var(--color-table-index-body)'
-                          : 'transparent',
-                        fontWeight: isIndexCol ? 'bold' : 'normal',
-                        cursor: isIndexCol ? 'pointer' : 'auto',
+                          ? 'var(--color-table-index-header)'
+                          : 'var(--color-table-header)',
+                        cursor: 'pointer',
                       }}
-                      onDoubleClick={() =>
-                        handleDoubleClick(rowId, colId, displayValue)
-                      }
-                      onClick={() => handleCellClick(rIndex)}
-                      onMouseDown={(evt) => {
-                        if (isIndexCol) {
-                          handleRowIndexMouseDown(evt, rIndex, rowId);
-                        }
-                      }}
-                      onTouchStart={(evt) => {
-                        if (isIndexCol && evt.touches.length === 1) {
-                          handleRowIndexTouchStart(evt, rIndex, rowId);
-                        }
-                      }}
+                      onClick={(e) => handleHeaderClick(e, hIndex, colId)}
+                      onMouseDown={(e) => handleHeaderMouseDown(e, hIndex, colId)}
+                      onTouchStart={(e) => handleHeaderTouchStart(e, hIndex, colId)}
                     >
-                      {cellContent}
-                    </td>
+                      <div className="column-header-content">
+                        <span
+                          className="column-header-label"
+                          style={{ fontWeight: isIndexCol ? 'bold' : 'normal' }}
+                          title={String(header.column.columnDef.header || '')}
+                        >
+                          {header.isPlaceholder
+                            ? null
+                            : header.column.columnDef.header}
+                        </span>
+
+                        {/* Ícono filtro (excepto col índice) */}
+                        {!isIndexCol && (
+                          <div className="column-header-actions">
+                            <IconButton
+                              size="small"
+                              onClick={(evt) => {
+                                evt.stopPropagation();
+                                handleOpenMenu(evt, colId);
+                              }}
+                              sx={{
+                                color: 'var(--color-text)',
+                                padding: '2px',
+                              }}
+                            >
+                              <FilterListIcon
+                                fontSize="inherit"
+                                style={{ fontSize: '14px' }}
+                              />
+                            </IconButton>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Manija de resize */}
+                      <div
+                        className="resize-handle"
+                        onMouseDown={(evt) => {
+                          evt.stopPropagation();
+                          handleMouseDownResize(evt, colId);
+                        }}
+                      />
+                    </th>
                   );
                 })}
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            ))}
+          </thead>
 
-      {/* Popover para configuración de filtros por columna */}
-      <Popover
-        open={Boolean(anchorEl)}
-        anchorEl={anchorEl}
-        onClose={handleCloseMenu}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-      >
-        <ColumnFilterConfiguration
-          menuColumnId={menuColumnId}
-          columnFilters={columnFilters}
-          updateColumnFilter={updateColumnFilter}
-          originalColumnsDef={originalColumnsDef}
-        />
-      </Popover>
+          {/* Cuerpo (tbody) */}
+          <tbody>
+            {rows.map((row, rIndex) => {
+              const rowId = row.id;
+              const rowIsHighlighted = highlightedRowIndex === rIndex;
 
-      {/* Menú contextual (copiar, ocultar col/filas) */}
-      <Menu
-        open={contextMenu !== null}
-        onClose={handleCloseContextMenu}
-        anchorReference="anchorPosition"
-        anchorPosition={
-          contextMenu !== null
-            ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
-            : undefined
-        }
+              return (
+                <tr
+                  key={rowId}
+                  style={{
+                    height: ROW_HEIGHT,
+                    backgroundColor: rowIsHighlighted
+                      ? 'var(--color-table-row-highlight, #fff9e6)'
+                      : 'transparent',
+                  }}
+                >
+                  {row.getVisibleCells().map((cell, cIndex) => {
+                    const colId = cell.column.id;
+                    const isIndexCol = colId === '_selectIndex';
+
+                    // Selección / copiado
+                    const isSelected = selectedCells.some(
+                      (sc) => sc.id === rowId && sc.colField === colId
+                    );
+                    const isCopied = copiedCells.some(
+                      (cc) => cc.id === rowId && cc.colField === colId
+                    );
+
+                    const inEditingMode = isEditingCell(rowId, colId);
+                    const rawValue = cell.getValue();
+                    const customRender = cell.column.columnDef.cell
+                      ? cell.column.columnDef.cell({
+                          getValue: () => rawValue,
+                          column: cell.column,
+                          row: cell.row,
+                          table,
+                        })
+                      : rawValue;
+                    const displayValue = safeDisplayValue(customRender);
+
+                    let cellContent;
+                    if (inEditingMode) {
+                      // Input de edición en línea
+                      cellContent = (
+                        <input
+                          type="text"
+                          autoFocus
+                          value={editingValue}
+                          onChange={handleChange}
+                          onKeyDown={handleKeyDown}
+                          onBlur={handleBlur}
+                          style={{
+                            width: '100%',
+                            border: 'none',
+                            outline: 'none',
+                            padding: 0,
+                            margin: 0,
+                            backgroundColor: 'transparent',
+                          }}
+                        />
+                      );
+                    } else {
+                      cellContent = displayValue;
+                    }
+
+                    return (
+                      <td
+                        key={cell.id}
+                        data-row={rIndex}
+                        data-col={cIndex}
+                        className={`custom-td ${
+                          isSelected ? SELECTED_CELL_CLASS : ''
+                        } ${isCopied ? COPIED_CELL_CLASS : ''}`}
+                        style={{
+                          backgroundColor: isIndexCol
+                            ? 'var(--color-table-index-body)'
+                            : 'transparent',
+                          fontWeight: isIndexCol ? 'bold' : 'normal',
+                          cursor: isIndexCol ? 'pointer' : 'auto',
+                        }}
+                        onDoubleClick={() => handleDoubleClick(rowId, colId, displayValue)}
+                        onClick={() => handleCellClick(rIndex)}
+                        onMouseDown={(evt) => {
+                          if (isIndexCol) {
+                            handleRowIndexMouseDown(evt, rIndex, rowId);
+                          }
+                        }}
+                        onTouchStart={(evt) => {
+                          if (isIndexCol && evt.touches.length === 1) {
+                            handleRowIndexTouchStart(evt, rIndex, rowId);
+                          }
+                        }}
+                      >
+                        {cellContent}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        {/* Popover para filtros por columna */}
+        <Popover
+          open={Boolean(anchorEl)}
+          anchorEl={anchorEl}
+          onClose={handleCloseMenu}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        >
+          <ColumnFilterConfiguration
+            menuColumnId={menuColumnId}
+            columnFilters={columnFilters}
+            updateColumnFilter={updateColumnFilter}
+            originalColumnsDef={originalColumnsDef}
+          />
+        </Popover>
+
+        {/* Menú contextual (copiar, ocultar col/filas) */}
+        <Menu
+          open={contextMenu !== null}
+          onClose={handleCloseContextMenu}
+          anchorReference="anchorPosition"
+          anchorPosition={
+            contextMenu !== null
+              ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+              : undefined
+          }
+        >
+          <MenuItem onClick={handleCopyFromMenu}>Copiar</MenuItem>
+          {onHideColumns && clickedHeaderIndex != null && (
+            <MenuItem onClick={handleHideColumn}>Ocultar Columna</MenuItem>
+          )}
+          {onHideRows && clickedRowIndex != null && (
+            <MenuItem onClick={handleHideRow}>Ocultar Fila</MenuItem>
+          )}
+        </Menu>
+      </Box>
+
+      {/* BARRA DE PAGINACIÓN STICKY ABAJO */}
+      <Box
+        sx={{
+          position: 'sticky',
+          bottom: 0,
+          left: 0,
+          backgroundColor: 'var(--color-bg-paper)',
+          borderTop: `1px solid var(--color-divider)`,
+          zIndex: 10,
+          padding: '8px',
+        }}
       >
-        <MenuItem onClick={handleCopyFromMenu}>Copiar</MenuItem>
-        {onHideColumns && clickedHeaderIndex != null && (
-          <MenuItem onClick={handleHideColumn}>Ocultar Columna</MenuItem>
-        )}
-        {onHideRows && clickedRowIndex != null && (
-          <MenuItem onClick={handleHideRow}>Ocultar Fila</MenuItem>
-        )}
-      </Menu>
+        <Pagination table={table} />
+      </Box>
     </Box>
   );
 }

@@ -1,9 +1,31 @@
 /**
  * Archivo: /components/CustomTable/index.js
- * Descripción:
- *  - Componente principal que orquesta la tabla, la barra de filtros y la paginación.
- *  - La barra de filtros y la paginación se mantienen siempre visibles (sticky).
- *  - La tabla se desplaza dentro de un contenedor con overflow dinámico (flex: 1).
+ * LICENSE: MIT
+ *
+ * DESCRIPCIÓN:
+ *   - Componente principal que orquesta la tabla y la barra de filtros.
+ *   - La paginación se ha movido a `TableView`, para centralizar
+ *     la lógica de scroll y selección.
+ *
+ * FUNCIONALIDADES:
+ *   - Configura el tema (claro/oscuro).
+ *   - Usa `useCustomTableLogic` para obtener la instancia de la tabla (sorting, filtering, etc.).
+ *   - Opcionalmente muestra la barra de filtros (FiltersToolbar).
+ *   - Renderiza `TableView`, que ahora incluye la paginación sticky.
+ *
+ * PARÁMETROS (props):
+ *   - data (array): filas de la tabla.
+ *   - columnsDef (array): definición de columnas.
+ *   - themeMode (string): "light" o "dark".
+ *   - pageSize (number): filas por página.
+ *   - loading (boolean): indica si está cargando.
+ *   - filtersToolbarProps (object): props adicionales para FiltersToolbar.
+ *   - onRefresh (function): callback del botón "Refrescar".
+ *   - showFiltersToolbar (boolean): mostrar/ocultar la barra de filtros.
+ *   - onHideColumns (function): callback para ocultar columnas.
+ *   - onHideRows (function): callback para ocultar filas.
+ *
+ * @version 1.0
  */
 
 import React, { useRef, useEffect, useState } from 'react';
@@ -11,10 +33,8 @@ import { useCustomTableLogic } from '../hooks/useCustomTableLogic';
 import { useThemeMode } from '../hooks/useThemeMode';
 import useCellSelection from '../hooks/useCellSelection';
 
-// Componentes
 import FiltersToolbar from '../toolbar/FiltersToolbar';
-import TableSection from '../TableView';
-import Pagination from './Pagination';
+import TableSection from '../TableView'; // <-- La paginación está adentro de TableView
 
 export default function CustomTable({
   data,
@@ -34,7 +54,7 @@ export default function CustomTable({
   const { themeMode: internalMode, isDarkMode, toggleThemeMode } = useThemeMode(themeMode);
 
   //
-  // 2) Lógica principal (React Table)
+  // 2) Lógica principal (React Table) desde el custom hook
   //
   const {
     table,
@@ -57,9 +77,10 @@ export default function CustomTable({
 
   //
   // 3) Selección de celdas y copiado
+  //    (Se mantiene para orquestar, aunque el contenedor final
+  //     esté en TableView)
   //
   const containerRef = useRef(null);
-
   const {
     selectedCells,
     setSelectedCells,
@@ -85,7 +106,6 @@ export default function CustomTable({
       if (rowIdString == null || isNaN(cIndex) || rect.width <= 0 || rect.height <= 0) {
         return;
       }
-
       const rowId = rowIdString;
       const colObj = table.getVisibleFlatColumns()[cIndex];
       if (colObj) {
@@ -102,10 +122,9 @@ export default function CustomTable({
     return cells;
   }
 
-  // Listener de teclas (flechas) en el contenedor
+  // Listener de teclas (flechas) en el contenedor principal
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Solo proceder si el foco está dentro del contenedor
       if (!containerRef.current?.contains(document.activeElement)) return;
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         handleKeyDownArrowSelection(e);
@@ -118,11 +137,11 @@ export default function CustomTable({
   }, [handleKeyDownArrowSelection]);
 
   //
-  // 4) Render del componente
+  // 4) Render principal
   //
   return (
     <>
-      {/* Contenedor general (flex column) con clase de tema */}
+      {/* Contenedor general con clase de tema */}
       <div
         className={`customTableContainer ${isDarkMode ? 'tabla-dark' : 'tabla-light'}`}
         style={{
@@ -132,7 +151,7 @@ export default function CustomTable({
           position: 'relative',
         }}
       >
-        {/* Barra de filtros (sticky en la parte superior) */}
+        {/* Barra de filtros (opcional) con sticky top */}
         {showFiltersToolbar && (
           <div
             style={{
@@ -140,8 +159,8 @@ export default function CustomTable({
               top: 0,
               left: 0,
               zIndex: 9999,
-              backgroundColor: isDarkMode ? '#1F1F1F' : '#FFFFFF',
-              borderBottom: `1px solid ${isDarkMode ? '#444' : '#ddd'}`,
+              backgroundColor: 'var(--color-bg-paper)',
+              borderBottom: `1px solid var(--color-divider)`,
             }}
           >
             <FiltersToolbar
@@ -156,21 +175,21 @@ export default function CustomTable({
           </div>
         )}
 
-        {/* Contenedor scrolleable de la tabla (flex: 1) */}
+        {/* Contenedor para la tabla + paginación (están en TableView) */}
         <div
           ref={containerRef}
           style={{
             flex: 1,
-            overflow: 'auto',
-            // Evitar que la parte final quede tapada por la paginación
-            paddingBottom: '70px',
-            filter: loading ? 'blur(2px)' : 'none',
-            transition: 'filter 0.2s ease-in-out',
+            display: 'flex',
+            flexDirection: 'column',
+            // Ya no establecemos overflow ni paddingBottom aquí,
+            // pues lo maneja TableView internamente
+            position: 'relative',
           }}
         >
           <TableSection
             table={table}
-            // Filtros
+            // Filtros por columna
             columnFilters={columnFilters}
             updateColumnFilter={(colId, filterValue) =>
               setColumnFilters((prev) => ({
@@ -205,22 +224,7 @@ export default function CustomTable({
           />
         </div>
 
-        {/* Barra de paginación (sticky en la parte inferior) */}
-        <div
-          style={{
-            position: 'sticky',
-            bottom: 0,
-            left: 0,
-            zIndex: 9999,
-            backgroundColor: isDarkMode ? '#1F1F1F' : '#FFFFFF',
-            borderTop: `1px solid ${isDarkMode ? '#444' : '#ddd'}`,
-            padding: '8px',
-          }}
-        >
-          <Pagination table={table} />
-        </div>
-
-        {/* Overlay de "cargando" */}
+        {/* Overlay de carga */}
         {loading && (
           <div
             style={{

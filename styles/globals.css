@@ -122,7 +122,7 @@
 /* ------------------------------------------------------------------
    4. BODY aplicado con variables por defecto (modo claro)
 --------------------------------------------------------------------*/
-body {
+html, body {
   font-family: var(--font-family-main);
   font-size: var(--font-size-base);
   background-color: var(--color-bg);
@@ -131,6 +131,7 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
+
 }
 
 /* ------------------------------------------------------------------
