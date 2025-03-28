@@ -1,5 +1,5 @@
 /**
- * Archivo: /components/registros/TableView/IndexColumn.js
+ * Archivo: /components/CustomTable/IndexColumn.js
  * LICENSE: MIT
  *
  * Define la columna de índice (número de fila).
@@ -11,7 +11,7 @@ import { createColumnHelper } from '@tanstack/react-table';
 /**
  * getIndexColumn
  * @param {Object} [options] Opciones para personalizar un poco la columna índice.
- * @param {string} [options.headerText='']   - Texto en el encabezado de la columna.
+ * @param {string} [options.headerText='']   - Texto en el encabezado de la columna (por si lo necesitas).
  * @param {number} [options.minWidth=32]     - Ancho mínimo.
  * @param {number} [options.width=32]        - Ancho fijo, si lo deseas.
  *

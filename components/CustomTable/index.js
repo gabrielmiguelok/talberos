@@ -10,10 +10,11 @@
  *   3. Filtros, búsqueda global, y ordenamiento.
  *   4. Exportación a Excel.
  *   5. Paginación.
+ *   6. Soporte para selección de celdas y copiado.
  *
  * DEPENDENCIAS:
  *   - react, xlsx, @tanstack/react-table, etc.
- *   - Hooks personalizados: useDebouncedValue.
+ *   - Hooks personalizados: useDebouncedValue, useCellSelection, useCustomTableLogic, useThemeMode.
  *   - Componentes auxiliares: FiltersToolbar, TableSection, Pagination.
  *
  * EJEMPLO DE USO:
@@ -21,7 +22,7 @@
  * <CustomTable
  *   data={dataArray}
  *   columnsDef={columnsDefinition}
- *   themeMode="dark" // o "light"
+ *   themeMode="light" // o "dark"
  *   pageSize={50}
  *   loading={isLoading}
  *   filtersToolbarProps={{ ... }}
@@ -33,226 +34,140 @@
  * ~~~
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
-import * as XLSX from 'xlsx';
-import {
-  createColumnHelper,
-  useReactTable,
-  getCoreRowModel,
-  getPaginationRowModel,
-} from '@tanstack/react-table';
-
-import { useDebouncedValue } from '../hooks/useDebouncedValue';
-import {
-  FilterFlow,
-  applySorting,
-  getExportColumnsDef,
-  getExportValue,
-} from './filterFlow';
+import React, { useRef, useEffect, useState } from 'react';
+import { useCustomTableLogic } from '../hooks/useCustomTableLogic';
+import { useThemeMode } from '../hooks/useThemeMode';
+import useCellSelection from '../hooks/useCellSelection';
 
 import FiltersToolbar from '../toolbar/FiltersToolbar';
 import TableSection from '../TableView';
 import Pagination from './Pagination';
 
+/**
+ * Componente principal: CustomTable
+ *
+ * @param {Array}    data                  - Filas de la tabla.
+ * @param {Array}    columnsDef            - Definición de columnas (sin la de índice).
+ * @param {string}   [themeMode='light']   - "light" (por defecto) o "dark".
+ * @param {number}   [pageSize=50]         - Cant. de filas por página.
+ * @param {boolean}  [loading=false]       - Indica si está cargando.
+ * @param {Object}   [filtersToolbarProps] - Props p/ `FiltersToolbar`.
+ * @param {Function} [onRefresh]           - Callback del botón "Refrescar".
+ * @param {boolean}  [showFiltersToolbar=true] - Muestra la barra de filtros.
+ * @param {Function} [onHideColumns]       - Callback para ocultar columnas.
+ * @param {Function} [onHideRows]          - Callback para ocultar filas.
+ *
+ * @returns {JSX.Element}
+ */
 export default function CustomTable({
   data,
   columnsDef,
   themeMode = 'light',
   pageSize = 50,
-  loading,
+  loading = false,
   filtersToolbarProps,
   onRefresh,
   showFiltersToolbar = true,
   onHideColumns,
   onHideRows,
 }) {
-  // ---------------------------
-  // 1) Manejo interno del tema
-  // ---------------------------
-  const [internalThemeMode, setInternalThemeMode] = useState(themeMode);
+  //
+  // 1) Hook de tema (uso deThemeMode)
+  //
+  const { themeMode: internalMode, isDarkMode, toggleThemeMode } = useThemeMode(themeMode);
 
-  // Alternar tema internamente
-  const handleThemeToggleLocal = () => {
-    setInternalThemeMode((prevMode) =>
-      prevMode === 'dark' ? 'light' : 'dark'
-    );
-  };
-
-  const isDarkMode = internalThemeMode === 'dark';
-
-  // ---------------------------
-  // 2) Definición de columnas
-  // ---------------------------
-  const finalColumns = useMemo(
-    () => (columnsDef && columnsDef.length > 0 ? columnsDef : []),
-    [columnsDef]
-  );
-
-  const columnHelper = createColumnHelper();
-
-  // Agregamos la columna índice al inicio
-  const indexedColumns = useMemo(() => {
-    const selectIndexColumn = columnHelper.display({
-      id: '_selectIndex',
-      header: '',
-      cell: (info) => info.row.index + 1,
-      meta: {
-        isSelectIndex: true,
-        minWidth: 32,
-        width: 32,
-      },
-    });
-
-    const userColumns = finalColumns.map((col) =>
-      columnHelper.accessor(col.accessorKey, {
-        header: col.header,
-        cell: col.cell,
-        meta: {
-          minWidth: col.minWidth || undefined,
-          flex: col.flex || undefined,
-          filterMode: col.filterMode || 'contains',
-          isNumeric: col.isNumeric || false,
-        },
-      })
-    );
-
-    return [selectIndexColumn, ...userColumns];
-  }, [finalColumns, columnHelper]);
-
-  // ---------------------------
-  // 3) Filtros y ordenamiento
-  // ---------------------------
-  const [columnFilters, setColumnFilters] = useState({});
-  const [tempGlobalFilter, setTempGlobalFilter] = useState('');
-  const debouncedGlobalFilter = useDebouncedValue(tempGlobalFilter, 500);
-
-  const [sorting, setSorting] = useState({ columnId: '', direction: '' });
-
-  const toggleSort = (colId) => {
-    setSorting((prev) => {
-      if (prev.columnId !== colId) {
-        return { columnId: colId, direction: 'desc' };
-      }
-      if (prev.direction === 'desc') {
-        return { columnId: colId, direction: 'asc' };
-      }
-      if (prev.direction === 'asc') {
-        return { columnId: '', direction: '' };
-      }
-      return { columnId: colId, direction: 'desc' };
-    });
-  };
-
-  // Forzar 'range' si la columna es numérica y se ingresa min/max
-  useEffect(() => {
-    Object.keys(columnFilters).forEach((colId) => {
-      const colDef = finalColumns.find((c) => c.accessorKey === colId);
-      if (colDef?.isNumeric) {
-        const cf = columnFilters[colId];
-        if (cf) {
-          const { operator, min, max } = cf;
-          if ((min != null || max != null) && !operator) {
-            setColumnFilters((prev) => ({
-              ...prev,
-              [colId]: { ...prev[colId], operator: 'range' },
-            }));
-          }
-        }
-      }
-    });
-  }, [columnFilters, finalColumns]);
-
-  // ---------------------------
-  // 4) Filtrado y ordenamiento
-  // ---------------------------
-  const filteredData = useMemo(() => {
-    const flow = new FilterFlow({
-      data,
-      columnsDef: finalColumns,
-      columnFilters,
-      globalFilter: debouncedGlobalFilter,
-    });
-    const filtered1 = flow._applyColumnFilters([...data]);
-    const filtered2 = flow._applyGlobalFilter(filtered1);
-    const filtered3 = flow._applyColumnSorting(filtered2);
-
-    if (sorting.columnId && sorting.direction) {
-      return applySorting(filtered3, sorting, finalColumns);
-    }
-    return filtered3;
-  }, [data, finalColumns, columnFilters, debouncedGlobalFilter, sorting]);
-
-  // ---------------------------
-  // 5) Instancia react-table
-  // ---------------------------
-  const table = useReactTable({
-    data: filteredData,
-    columns: indexedColumns,
-    getRowId: (_row, rowIndex) => String(rowIndex),
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    pageCount: Math.ceil(filteredData.length / pageSize),
-    manualPagination: false,
-    initialState: {
-      pagination: {
-        pageSize,
-        pageIndex: 0,
-      },
-    },
+  //
+  // 2) Hook de orquestación principal (useCustomTableLogic)
+  //
+  const {
+    table,
+    columnFilters,
+    setColumnFilters,
+    tempGlobalFilter,
+    setTempGlobalFilter,
+    sorting,
+    toggleSort,
+    handleDownloadExcel,
+    columnWidths,
+    handleSetColumnWidth,
+    finalColumns,
+    filteredData,
+  } = useCustomTableLogic({
+    data,
+    columnsDef,
+    pageSize,
   });
 
-  // ---------------------------
-  // 6) Exportar a Excel
-  // ---------------------------
-  const handleDownloadExcel = () => {
-    try {
-      const exportCols = getExportColumnsDef(finalColumns);
-      const wsData = [
-        exportCols.map((c) => c.header),
-        ...filteredData.map((row) =>
-          exportCols.map((col) => String(getExportValue(row, col)))
-        ),
-      ];
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      XLSX.utils.book_append_sheet(wb, ws, 'Datos');
-      const wbArray = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([wbArray], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'tabla_exportada.xlsx';
-      link.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Error generando Excel:', err);
-    }
-  };
+  //
+  // 3) Hook para selección de celdas y copiado
+  //
+  const containerRef = useRef(null);
 
-  // ---------------------------
-  // 7) Ancho de columnas
-  // ---------------------------
-  const [columnWidths, setColumnWidths] = useState({});
+  const {
+    selectedCells,
+    setSelectedCells,
+    anchorCell,
+    focusCell,
+    setFocusCell,
+    setAnchorCell,
+    handleKeyDownArrowSelection,
+  } = useCellSelection(containerRef, getCellsInfo, filteredData, finalColumns, table);
 
-  const handleSetColumnWidth = (colId, width) => {
-    setColumnWidths((prev) => ({
-      ...prev,
-      [colId]: Math.max(50, width),
-    }));
-  };
+  const [copiedCells, setCopiedCells] = useState([]);
 
-  // -------------------------------------------------------------------------
-  // Render Principal
-  // -------------------------------------------------------------------------
+  // Función requerida por useCellSelection para mapear DOM -> coordenadas de celdas
+  function getCellsInfo() {
+    if (!containerRef.current) return [];
+    const cellEls = containerRef.current.querySelectorAll('[data-row][data-col]');
+    const cells = [];
+    cellEls.forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      const rowIdString = el.getAttribute('data-row');
+      const cIndex = parseInt(el.getAttribute('data-col'), 10);
+
+      if (rowIdString == null || isNaN(cIndex) || rect.width <= 0 || rect.height <= 0) {
+        return;
+      }
+
+      const rowId = rowIdString;
+      const colObj = table.getVisibleFlatColumns()[cIndex];
+      if (colObj) {
+        cells.push({
+          id: rowId,
+          colField: colObj.id,
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+        });
+      }
+    });
+    return cells;
+  }
+
+  // Listener de teclas (flechas) en el contenedor principal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!containerRef.current?.contains(document.activeElement)) return;
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        handleKeyDownArrowSelection(e);
+      }
+    };
+    containerRef.current?.addEventListener('keydown', handleKeyDown);
+    return () => {
+      containerRef.current?.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDownArrowSelection]);
+
+  //
+  // 4) Render principal: spinner, overlay, theme, etc.
+  //
   return (
     <div
-      className={`customTableContainer ${
-        isDarkMode ? 'tabla-dark' : 'tabla-light'
-      }`}
+      className={`customTableContainer ${isDarkMode ? 'tabla-dark' : 'tabla-light'}`}
       style={{ position: 'relative' }}
     >
+      {/* Barra de filtros */}
       {showFiltersToolbar && (
         <FiltersToolbar
           {...(filtersToolbarProps || {})}
@@ -261,10 +176,12 @@ export default function CustomTable({
           onDownloadExcel={handleDownloadExcel}
           onRefresh={onRefresh}
           isDarkMode={isDarkMode}
-          onThemeToggle={handleThemeToggleLocal} // Modo oscuro/claro interno
+          // Usamos la función del hook
+          onThemeToggle={toggleThemeMode}
         />
       )}
 
+      {/* Contenedor principal (con blur si loading) */}
       <div
         style={{
           filter: loading ? 'blur(2px)' : 'none',
@@ -272,7 +189,9 @@ export default function CustomTable({
         }}
       >
         <TableSection
+          // Tabla (react-table)
           table={table}
+          // Filtros
           columnFilters={columnFilters}
           updateColumnFilter={(colId, filterValue) =>
             setColumnFilters((prev) => ({
@@ -280,19 +199,35 @@ export default function CustomTable({
               [colId]: { ...prev[colId], ...filterValue },
             }))
           }
+          // Columnas
           columnsDef={finalColumns}
           originalColumnsDef={finalColumns}
+          // Loading (por si quieres deshabilitar algo en la UI)
           loading={loading}
+          // Selección de celdas
+          containerRef={containerRef}
+          selectedCells={selectedCells}
+          setSelectedCells={setSelectedCells}
+          anchorCell={anchorCell}
+          focusCell={focusCell}
+          setFocusCell={setFocusCell}
+          setAnchorCell={setAnchorCell}
+          copiedCells={copiedCells}
+          setCopiedCells={setCopiedCells}
+          // Resize de columnas
           columnWidths={columnWidths}
           setColumnWidth={handleSetColumnWidth}
+          // Ordenamiento
           sorting={sorting}
           toggleSort={toggleSort}
+          // Callbacks para ocultar cols/rows
           onHideColumns={onHideColumns}
           onHideRows={onHideRows}
         />
         <Pagination table={table} />
       </div>
 
+      {/* Overlay si está cargando */}
       {loading && (
         <div
           style={{
