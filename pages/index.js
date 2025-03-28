@@ -6,11 +6,13 @@ import {
   Typography,
   Grid,
   Paper,
-  useMediaQuery
+  useMediaQuery,
+  Button
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Zoom } from 'react-awesome-reveal';
 import Tilt from 'react-parallax-tilt';
+import Link from 'next/link'; // Importa Link para navegación interna
 
 // Importaciones de tu tabla y definición de campos
 import dataArray from '../data/registrosData.json';
@@ -31,11 +33,10 @@ const TITLE_FONT_WEIGHT = 'bold';           // Bold, normal, etc.
 const TITLE_MARGIN_BOTTOM = 2;              // Margen inferior para el título
 
 // Estilos para la "Descripción"
-const DESCRIPTION_COLOR = '#FFFFFF';        // Color de la descripción
-const DESCRIPTION_MAX_WIDTH = '1200px';      // Máximo ancho del texto
-const DESCRIPTION_LINE_HEIGHT = 1.7;        // Altura de línea
-const DESCRIPTION_MARGIN_BOTTOM = 4;        // Margen inferior
-// Para fuentes responsivas puedes usar un objeto o un string fijo
+const DESCRIPTION_COLOR = '#FFFFFF';
+const DESCRIPTION_MAX_WIDTH = '1200px';
+const DESCRIPTION_LINE_HEIGHT = 1.7;
+const DESCRIPTION_MARGIN_BOTTOM = 4;
 const DESCRIPTION_FONT_SIZE = { xs: '1rem', md: '1.7rem' };
 
 // Estilos para el contenedor principal
@@ -158,6 +159,7 @@ export default function IndexTalberos() {
         marginBottom={DESCRIPTION_MARGIN_BOTTOM}
       />
 
+      {/* GRID DE TABLEROS */}
       <Zoom cascade damping={0.1} triggerOnce>
         <Grid container spacing={6} justifyContent="center" alignItems="flex-start">
           {/* TABLERO VERSIÓN CLARA */}
@@ -229,6 +231,34 @@ export default function IndexTalberos() {
           </Grid>
         </Grid>
       </Zoom>
+
+      {/* BOTÓN AMPLIAR (Con enlace interno a /init) */}
+      <Box sx={{ textAlign: 'center', mt: 4 }}>
+        <Link href="/init" style={{ textDecoration: 'none' }}>
+          <Button
+            variant="contained"
+            sx={{
+              // Ajusta estos estilos para hacerlo aún más "sofisticado"
+              background: '#FF00AA',
+              color: '#FFFFFF',
+              fontWeight: 'bold',
+              borderRadius: '5px',
+              px: 4,
+              py: 1.5,
+              fontSize: '1rem',
+              textTransform: 'none',
+              boxShadow: 7,
+              transition: 'transform 0.2s ease-out',
+              '&:hover': {
+                background: '#FF44C4',
+                boxShadow: 7,
+              },
+            }}
+          >
+            Ampliar
+          </Button>
+        </Link>
+      </Box>
     </Box>
   );
 }

@@ -1,0 +1,34 @@
+# Dependencias de Node.js
+**/node_modules/
+**/node_modules/
+**/baileys_auth/
+# Cachés y archivos temporales
+**/*.log
+**/*.pid
+**/*.pid.lock
+**/*.seed
+**/*.tgz
+**/.DS_Store
+**/Thumbs.db
+**/.xlm
+# Directorios específicos
+**/userData/
+**/logs/
+# Directorios de compilación
+/.next/
+/out/
+/build/
+/.nuxt/
+**/.mp4
+**/.mp4*
+/.mp4*
+.mp4*
+# Otros archivos temporales y registros de depuración
+/.wwebjs_cache/
+/.wwebjs_auth/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+gestion.cjs*
+copy.txt*
+copy.js*
