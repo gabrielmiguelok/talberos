@@ -2,12 +2,15 @@
  * Archivo: /components/registros/toolbar/FiltersToolbar.js
  * LICENSE: MIT
  *
- * DESCRIPTION:
+ * DESCRIPCIÓN:
  *   Barra de filtros genérica con:
  *    - Filtro global (TextField).
  *    - Botón para descargar Excel (opcional).
  *    - Botón para refrescar datos (opcional).
  *    - Botón para cambiar de tema (siempre visible).
+ *
+ *   Ajustado para que todos los elementos (filtro global y botones)
+ *   aparezcan alineados a la izquierda.
  *
  * @version 1.0
  ************************************************************************************/
@@ -19,6 +22,16 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 
 /**
  * Barra de filtros con búsqueda global y acciones adicionales.
+ *
+ * @param {object} props - Propiedades del componente.
+ * @param {string} props.globalFilterValue - Valor del filtro global (texto de búsqueda).
+ * @param {function} props.onGlobalFilterChange - Función que se invoca cuando cambia el texto del filtro global.
+ * @param {function} [props.onDownloadExcel] - (Opcional) Función para descargar datos en formato Excel.
+ * @param {function} [props.onRefresh] - (Opcional) Función para refrescar datos.
+ * @param {function} [props.onThemeToggle] - (Opcional) Función para alternar entre modo oscuro y claro.
+ * @param {boolean} props.isDarkMode - Indica si el modo oscuro está activo.
+ *
+ * @returns {JSX.Element} - Elemento JSX que representa la barra de filtros.
  */
 export default function FiltersToolbar({
   globalFilterValue = '',
@@ -28,18 +41,26 @@ export default function FiltersToolbar({
   onThemeToggle,
   isDarkMode = false
 }) {
+  /**
+   * Maneja el evento de alternar el tema (oscuro <-> claro).
+   */
   const handleThemeToggle = () => {
     if (onThemeToggle) {
       onThemeToggle();
     }
   };
 
+  /**
+   * Estilos en línea para la barra de herramientas.
+   * Se define un contenedor con `display: flex` para ubicar
+   * todos los elementos de manera horizontal.
+   */
   const toolbarStyle = {
     display: 'flex',
     alignItems: 'center',
     background: 'var(--color-filterbar-bg)',
     height: '48px',
-    minWidth: '1300px',
+    maxWidth: '100%',
     padding: '0 8px',
     gap: '8px',
     boxSizing: 'border-box'
@@ -47,7 +68,11 @@ export default function FiltersToolbar({
 
   return (
     <div style={toolbarStyle}>
-      {/* Filtro global */}
+      {/*
+        Filtro global.
+        Se ha removido `marginLeft: 'auto'` para que permanezca
+        a la izquierda junto al resto de iconos.
+      */}
       <TextField
         variant="outlined"
         size="small"
@@ -55,7 +80,6 @@ export default function FiltersToolbar({
         value={globalFilterValue}
         onChange={(e) => onGlobalFilterChange(e.target.value)}
         sx={{
-          marginLeft: 'auto',
           width: '220px',
           '& .MuiOutlinedInput-root': {
             borderRadius: 0,
@@ -63,22 +87,24 @@ export default function FiltersToolbar({
             lineHeight: 1.2,
             '& input': {
               padding: '2px 6px',
-              fontSize: '0.8rem',
-              color: 'var(--color-text)'
+              fontSize: '1rem',
+              color: '#ffffff'
             }
           }
         }}
       />
 
-      {/* Botón para descargar Excel */}
+      {/*
+        Botón para descargar Excel (opcional).
+        Sólo se muestra si se pasa la prop `onDownloadExcel`.
+      */}
       {onDownloadExcel && (
         <Tooltip title="Descargar datos en formato Excel" arrow>
           <IconButton
             size="small"
             onClick={onDownloadExcel}
             sx={{
-              color: isDarkMode ? '#eee' : '#333',
-              marginLeft: '4px'
+              color: isDarkMode ? '#eee' : '#333'
             }}
             aria-label="Descargar Excel"
           >
@@ -94,7 +120,10 @@ export default function FiltersToolbar({
         </Tooltip>
       )}
 
-      {/* Botón modo oscuro/claro */}
+      {/*
+        Botón para cambiar entre modo oscuro y claro.
+        Se muestra siempre.
+      */}
       <Tooltip title="Cambiar entre modo claro y oscuro" arrow>
         <IconButton
           onClick={handleThemeToggle}
@@ -112,15 +141,17 @@ export default function FiltersToolbar({
         </IconButton>
       </Tooltip>
 
-      {/* Botón refrescar */}
+      {/*
+        Botón para refrescar datos (opcional).
+        Sólo se muestra si se pasa la prop `onRefresh`.
+      */}
       {onRefresh && (
         <Tooltip title="Refrescar datos" arrow>
           <IconButton
             size="small"
             onClick={onRefresh}
             sx={{
-              color: isDarkMode ? '#eee' : '#333',
-              marginLeft: '4px'
+              color: isDarkMode ? '#eee' : '#333'
             }}
             aria-label="Refrescar"
           >

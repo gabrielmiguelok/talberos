@@ -1,32 +1,30 @@
 /************************************************************************************
- * LOCATION: /components/registros/TableView/index.js
+ * Archivo: /components/registros/TableView/index.js
  * LICENSE: MIT
  *
  * DESCRIPCIÓN GENERAL:
  *   Este sub-componente se encarga de renderizar la tabla HTML principal,
  *   incluyendo:
- *    - Selección de celdas (con drag, shift-click, etc.).
- *    - Selección arrastrando en la cabecera (horizontal) o en la primera
- *      columna (vertical), con soporte para mouse y touch.
+ *    - Selección de celdas (drag, shift-click, flechas, etc.) y copiado automático.
  *    - Menús contextuales (para copiar/ocultar columnas/filas).
  *    - Indicadores de carga y “sin resultados”.
  *    - Integración con un hook de edición en línea (useInlineCellEdit).
- *    - Manejo del copiado para evitar el error "Document not focused" y
- *      omitir copia cuando se está editando una celda.
- *    - Formateo de valores para no mostrar "null" o "[object Object]" en pantalla.
+ *    - Filtrado por columna (Popover).
+ *    - Redimensionado de columnas.
  *
  *   Principios SOLID:
- *    - SRP (Responsabilidad Única): Se encarga del render puro de la tabla y la
- *      lógica asociada a la selección/copiado/menús en la interfaz.
- *    - DIP: Recibe la definición de columnas y las funciones de filtrado mediante props.
+ *    - SRP: Renderiza la tabla y gestiona la interacción de selección/copiado/menús.
+ *    - DIP: Recibe definiciones y callbacks vía props, sin acoplamientos forzados.
  *
- *   Se agrega la lógica para anular el scroll del documento/contenedor
- *   mientras el usuario está arrastrando (mouse/touch).
+ *   NOTA sobre scroll y copiado:
+ *    - Si este contenedor tiene un alto/width limitado y `overflow: auto`,
+ *      aparecerán scrolls vertical/horizontal cuando el contenido exceda.
+ *    - Así no se rompe la lógica de copiado al desbordar la tabla.
  *
- * @version 3.4
+ * @version 4.0
  ************************************************************************************/
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import {
   Box,
   CircularProgress,
@@ -39,6 +37,7 @@ import {
 import FilterListIcon from '@mui/icons-material/FilterList';
 
 // Hooks personalizados
+import useCellSelection from '../hooks/useCellSelection';
 import useClipboardCopy from '../hooks/useClipboardCopy';
 import useColumnResize from '../hooks/useColumnResize';
 import useInlineCellEdit from '../hooks/useInlineCellEdit';
@@ -47,13 +46,12 @@ import useTableViewContextMenu from './contextMenu/useTableViewContextMenu';
 // Componentes relacionados
 import ColumnFilterConfiguration from '../ColumnConfiguration';
 
-// Utilidades y constantes
+// Constantes y utilidades
 import {
   SELECTED_CELL_CLASS,
   COPIED_CELL_CLASS,
 } from '../tableViewVisualEffects';
 
-// Constantes internas
 const ROW_HEIGHT = 20;
 const LOADING_TEXT = 'Cargando datos...';
 const NO_RESULTS_TEXT = 'Sin resultados';
@@ -65,16 +63,13 @@ const AUTO_COPY_DELAY = 1000;
  *    o [object Object].
  *  - Si es un elemento React, se retorna tal cual.
  *  - Si es un objeto, se hace JSON.stringify.
- *
- * @param {*} val - Valor a formatear.
- * @returns {string|JSX.Element} - Cadena de texto o elemento React seguro.
  */
 function safeDisplayValue(val) {
   if (val == null) return '';
   if (typeof val === 'object') {
-    // Podría ser un elemento React (comprobación: val.$$typeof)
+    // Podría ser un elemento React (val.$$typeof)
     if (val.$$typeof) {
-      return val; // Retornarlo tal cual, es JSX
+      return val; // Es JSX, lo retornamos tal cual
     }
     return JSON.stringify(val);
   }
@@ -83,121 +78,137 @@ function safeDisplayValue(val) {
 
 /**
  * TableView
- *  - Componente principal para renderizar la tabla HTML con:
- *      • Selección de celdas (drag, shift-click, etc.) incluso desde cabecera/columna índice.
- *      • Menú contextual (copiar, ocultar columnas/filas).
- *      • Indicadores de carga y sin resultados.
- *      • Edición en línea de celdas.
- *      • Filtrado por columna (con un Popover que abre un configurador).
- *      • Lógica de redimensionado de columnas.
- *      • Manejo del copiado (auto-copy y Ctrl+C manual).
- *      • Anulación del scroll mientras se arrastra con mouse o touch.
+ * -----------------------------------------------------------------------------
+ * Componente principal para renderizar la tabla, con:
+ *   • Selección de celdas (drag, shift-click, flechas) y copiado automático.
+ *   • Menú contextual (copiar, ocultar col/filas).
+ *   • Edición en línea de celdas (useInlineCellEdit).
+ *   • Filtrado por columna (Popover).
+ *   • Redimensionado de columnas.
+ *   • Indicadores de carga y de “sin resultados”.
+ *   • Para scroll vertical/horizontal, asignar height o maxHeight con `overflow`.
  *
- * @param {object} props.table              - Instancia de la tabla (react-table).
- * @param {Array} props.selectedCells       - Lista de celdas seleccionadas ({id, colField}).
- * @param {Function} props.setSelectedCells - Setter para la selección de celdas.
- * @param {boolean} props.loading           - Indica si los datos están cargando.
- * @param {object} props.anchorCell         - Celda “ancla” de la selección.
- * @param {object} props.focusCell          - Celda en foco dentro de la selección.
- * @param {Function} props.setAnchorCell    - Setter para la celda ancla.
- * @param {Function} props.setFocusCell     - Setter para la celda con foco.
- * @param {object} props.columnFilters      - Filtros por columna (e.g. {colId: {operator, value, ...}}).
- * @param {Function} props.updateColumnFilter - Actualizador de filtro por columna.
- * @param {Array} props.columnsDef          - Definición de columnas.
- * @param {Array} [props.originalColumnsDef=[]] - Definición original de columnas (con widths, etc.).
- * @param {object} props.columnWidths       - Ancho de cada columna (colId -> width).
- * @param {Function} props.setColumnWidth   - Setter para asignar ancho a una columna.
- * @param {object} props.containerRef       - Referencia al contenedor principal de la tabla.
- * @param {Function} [props.onHideColumns]  - Callback para ocultar columnas (array de col IDs).
- * @param {Function} [props.onHideRows]     - Callback para ocultar filas (array de row IDs).
- * @param {object} props.sorting            - Estado de ordenamiento ({ columnId, direction }).
+ * @param {object}   props.table            - Instancia de la tabla (react-table).
+ * @param {boolean}  props.loading          - Indica si está cargando datos.
+ * @param {object}   props.columnFilters    - Filtros por columna.
+ * @param {Function} props.updateColumnFilter- Actualizador de filtro por columna.
+ * @param {Array}    props.columnsDef       - Definición de columnas (accesor, etc.).
+ * @param {Array}    [props.originalColumnsDef=[]] - Def. original de columnas (widths, etc.).
+ * @param {object}   props.columnWidths     - Ancho de cada columna (colId -> width).
+ * @param {Function} props.setColumnWidth   - Setter para ancho de columna.
+ * @param {Function} [props.onHideColumns]  - Callback para ocultar columnas.
+ * @param {Function} [props.onHideRows]     - Callback para ocultar filas.
+ * @param {object}   props.sorting          - Estado de ordenamiento { columnId, direction }.
  * @param {Function} props.toggleSort       - Función para cambiar el ordenamiento.
- *
- * @returns {JSX.Element} Renderizado de la tabla con selección, filtrado y más.
  */
 export default function TableView({
   table,
-  selectedCells,
-  setSelectedCells,
   loading,
-  anchorCell,
-  focusCell,
-  setAnchorCell,
-  setFocusCell,
   columnFilters,
   updateColumnFilter,
   columnsDef,
   originalColumnsDef = [],
   columnWidths,
   setColumnWidth,
-  containerRef,
   onHideColumns,
   onHideRows,
   sorting,
   toggleSort,
 }) {
-  // Filas procesadas (paginación, filtrado, etc.) por React Table
-  const rows = table.getRowModel().rows;
-  // Data completa (si se requiere para copiar contenido crudo).
-  const data = table.options.data || [];
+  // Referencia interna al contenedor principal (para capturar clicks/teclas)
+  const containerRef = useRef(null);
 
-  // Hook para copiar celdas (Ctrl + C) y marcar celdas copiadas visualmente
+  // Filas procesadas por React Table (paginación, filtrado, etc.)
+  const rows = table.getRowModel().rows;
+  // Data visible actual (filtrada/paginada)
+  const displayedData = rows.map((r) => r.original);
+
+  // -------------------------------------
+  // 1) Hook de selección de celdas
+  // -------------------------------------
+  // Función para mapear DOM -> coordenadas de celdas
+  function getCellsInfo() {
+    if (!containerRef.current) return [];
+    const cellEls = containerRef.current.querySelectorAll('[data-row][data-col]');
+    const cells = [];
+
+    cellEls.forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      const rowIdString = el.getAttribute('data-row');
+      const cIndex = parseInt(el.getAttribute('data-col'), 10);
+
+      if (rowIdString == null || isNaN(cIndex) || rect.width <= 0 || rect.height <= 0) {
+        return;
+      }
+
+      const rowId = rowIdString;
+      const colObj = table.getVisibleFlatColumns()[cIndex];
+      if (colObj) {
+        cells.push({
+          id: rowId,
+          colField: colObj.id,
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+        });
+      }
+    });
+    return cells;
+  }
+
+  const {
+    selectedCells,
+    setSelectedCells,
+    anchorCell,
+    focusCell,
+    setFocusCell,
+    setAnchorCell,
+    handleKeyDownArrowSelection,
+  } = useCellSelection(containerRef, getCellsInfo, displayedData, columnsDef, table);
+
+  // -------------------------------------
+  // 2) Teclas de flechas: mover selección
+  // -------------------------------------
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Solo si el contenedor está enfocado (o un hijo)
+      if (!containerRef.current?.contains(document.activeElement)) return;
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        handleKeyDownArrowSelection(e);
+      }
+    };
+    containerRef.current?.addEventListener('keydown', handleKeyDown);
+    return () => {
+      containerRef.current?.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDownArrowSelection]);
+
+  // -------------------------------------
+  // 3) Copiado (Ctrl + C) y auto-copiado
+  // -------------------------------------
   const { copiedCells, setCopiedCells } = useClipboardCopy(
     containerRef,
     selectedCells,
-    data,
+    displayedData,
     columnsDef
   );
 
-  // Hook para redimensionar columnas
-  const { handleMouseDownResize } = useColumnResize({
-    columnWidths,
-    setColumnWidth,
-    originalColumnsDef,
-  });
-
-  // Hook de edición en línea de celdas
-  const {
-    editingCell,
-    editingValue,
-    isEditingCell,
-    handleDoubleClick,
-    handleChange,
-    handleKeyDown,
-    handleBlur,
-  } = useInlineCellEdit();
-
-  // Popover para configurar filtros de columna
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [menuColumnId, setMenuColumnId] = useState(null);
-
-  const handleOpenMenu = (event, columnId) => {
-    setAnchorEl(event.currentTarget);
-    setMenuColumnId(columnId);
-  };
-  const handleCloseMenu = () => {
-    setAnchorEl(null);
-    setMenuColumnId(null);
-  };
-
-  /**
-   * Función interna para copiar celdas en formato TSV.
-   * Marca las celdas copiadas si todo es correcto.
-   */
+  // Función para copiar (usada por menú contextual y auto-copiado)
   async function doCopyCells(cellsToCopy) {
     if (!cellsToCopy?.length) return;
     if (!document.hasFocus()) {
+      // Evitar error 'Document not focused'
       console.warn('No se copió: el documento no está enfocado.');
       return;
     }
     try {
-      // Mapear rowIndex => rowData original
+      // Mapeamos rowId -> rowData
       const dataMap = new Map();
       rows.forEach((r) => {
         dataMap.set(r.id, r.original);
       });
 
-      // Para cada celda, recogemos el valor en un map rowId -> [valores...]
       const rowsMap = new Map();
       cellsToCopy.forEach((cell) => {
         const rowData = dataMap.get(cell.id);
@@ -222,7 +233,49 @@ export default function TableView({
     }
   }
 
-  // Hook con TODA la lógica del menú contextual (copiar, ocultar cols/filas)
+  // Auto-copiado (después de 1s sin mover la selección)
+  const autoCopyTimerRef = useRef(null);
+  // Edición en línea (para no copiar mientras se edita)
+  const {
+    editingCell,
+    editingValue,
+    isEditingCell,
+    handleDoubleClick,
+    handleChange,
+    handleKeyDown,
+    handleBlur,
+  } = useInlineCellEdit();
+
+  useEffect(() => {
+    if (!selectedCells?.length) return;
+    if (editingCell) return;
+    if (autoCopyTimerRef.current) clearTimeout(autoCopyTimerRef.current);
+
+    autoCopyTimerRef.current = setTimeout(async () => {
+      if (!document.hasFocus()) {
+        console.warn('[AutoCopy] Documento sin foco, no copiamos.');
+        return;
+      }
+      await doCopyCells(selectedCells);
+    }, AUTO_COPY_DELAY);
+
+    return () => {
+      if (autoCopyTimerRef.current) clearTimeout(autoCopyTimerRef.current);
+    };
+  }, [selectedCells, editingCell]);
+
+  // -------------------------------------
+  // 4) Redimensionar columnas
+  // -------------------------------------
+  const { handleMouseDownResize } = useColumnResize({
+    columnWidths,
+    setColumnWidth,
+    originalColumnsDef,
+  });
+
+  // -------------------------------------
+  // 5) Menú contextual (copiar/ocultar)
+  // -------------------------------------
   const {
     contextMenu,
     clickedHeaderIndex,
@@ -241,10 +294,25 @@ export default function TableView({
     rows,
   });
 
-  // --------------------------------------------------------------------------
-  // Lógica de arrastre para selección de columnas/filas (mouse y touch),
-  // con anulación del scroll.
-  // --------------------------------------------------------------------------
+  // -------------------------------------
+  // 6) Popover de filtros por columna
+  // -------------------------------------
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [menuColumnId, setMenuColumnId] = useState(null);
+
+  const handleOpenMenu = (event, columnId) => {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+    setMenuColumnId(columnId);
+  };
+  const handleCloseMenu = () => {
+    setAnchorEl(null);
+    setMenuColumnId(null);
+  };
+
+  // -------------------------------------
+  // 7) Lógica de arrastre para selección
+  // -------------------------------------
   const [isDraggingColumns, setIsDraggingColumns] = useState(false);
   const [startColIndex, setStartColIndex] = useState(null);
   const [isDraggingRows, setIsDraggingRows] = useState(false);
@@ -257,14 +325,11 @@ export default function TableView({
     startRowIndex: null,
   });
 
-  /**
-   * handleHeaderMouseDown:
-   *  - Cuando se hace mousedown en el header, inicia la selección por arrastre horizontal (mouse).
-   */
+  // Disparar la selección de columnas/filas al hacer mousedown/touchstart en header o índice:
   const handleHeaderMouseDown = (e, colIndex, colId) => {
-    // Ignorar si clic en el resize-handle
+    // Ignorar si clic en manija de resize
     if (e.target.classList.contains('resize-handle')) return;
-    // Ignorar si es la columna índice (por convención, colId === '_selectIndex')
+    // Ignorar si es la columna índice
     if (colId === '_selectIndex') return;
 
     dragStateRef.current.isDraggingCols = true;
@@ -273,13 +338,8 @@ export default function TableView({
     setStartColIndex(colIndex);
   };
 
-  /**
-   * handleHeaderTouchStart:
-   *  - Equivalente en touch para arrastre horizontal en cabecera.
-   */
   const handleHeaderTouchStart = (e, colIndex, colId) => {
     if (colId === '_selectIndex') return;
-    // Chequear si el dedo cae en la "resize-handle"
     if (e.target.classList.contains('resize-handle')) return;
 
     if (e.touches.length === 1) {
@@ -290,35 +350,23 @@ export default function TableView({
     }
   };
 
-  /**
-   * handleRowIndexMouseDown:
-   *  - Cuando se hace mousedown en la primera col (índice), inicia selección vertical (mouse).
-   */
   const handleRowIndexMouseDown = (e, rowIndex, rowId) => {
     e.stopPropagation();
     e.preventDefault();
-    // Seleccionar la fila en ese momento (single click)
+    // Seleccionar la fila entera de inmediato
     selectEntireRow(rowIndex, rowId);
 
-    // Preparar arrastre vertical
     dragStateRef.current.isDraggingRows = true;
     dragStateRef.current.startRowIndex = rowIndex;
     setIsDraggingRows(true);
     setStartRowIndex(rowIndex);
   };
 
-  /**
-   * handleRowIndexTouchStart:
-   *  - Equivalente en touch para arrastre vertical desde la primera col.
-   */
   const handleRowIndexTouchStart = (e, rowIndex, rowId) => {
     e.stopPropagation();
     e.preventDefault();
     if (e.touches.length === 1) {
-      // Seleccionar la fila en ese instante (tap simple)
       selectEntireRow(rowIndex, rowId);
-
-      // Y habilitar la lógica de arrastre vertical
       dragStateRef.current.isDraggingRows = true;
       dragStateRef.current.startRowIndex = rowIndex;
       setIsDraggingRows(true);
@@ -326,23 +374,21 @@ export default function TableView({
     }
   };
 
-  /**
-   * useEffect que maneja mousemove/mouseup Y touchmove/touchend para arrastrar.
-   * Se usa { passive: false } para poder hacer e.preventDefault() y así anular el scroll.
-   */
+  // Listeners globales para mover el mouse/touch y soltar
   useEffect(() => {
-    // Función interna para seleccionar en base a coordenadas
     const handlePointerMove = (clientX, clientY, e) => {
-      const { isDraggingCols, isDraggingRows, startColIndex, startRowIndex } =
-        dragStateRef.current;
+      const {
+        isDraggingCols,
+        isDraggingRows,
+        startColIndex: stCol,
+        startRowIndex: stRow,
+      } = dragStateRef.current;
 
       if (!containerRef.current) return;
 
       if (isDraggingCols) {
-        // Evitamos el scroll
         e.preventDefault();
-
-        // Selección horizontal de columnas
+        // Ver en qué columna de cabecera estamos
         const colEls = containerRef.current.querySelectorAll(
           'thead tr:first-child th'
         );
@@ -359,13 +405,11 @@ export default function TableView({
           }
         });
         if (currentIndex != null) {
-          selectColumnRange(startColIndex, currentIndex);
+          selectColumnRange(stCol, currentIndex);
         }
       } else if (isDraggingRows) {
-        // Evitamos el scroll
         e.preventDefault();
-
-        // Selección vertical de filas
+        // Ver en qué fila índice estamos
         const rowIndexCells = containerRef.current.querySelectorAll(
           'tbody tr td[data-col="0"]'
         );
@@ -382,14 +426,15 @@ export default function TableView({
           }
         });
         if (currentRow != null) {
-          selectRowRange(startRowIndex, currentRow);
+          selectRowRange(stRow, currentRow);
         }
       }
     };
 
     const handleMouseMove = (e) => {
-      const { isDraggingCols, isDraggingRows } = dragStateRef.current;
-      if (!isDraggingCols && !isDraggingRows) return;
+      if (!dragStateRef.current.isDraggingCols && !dragStateRef.current.isDraggingRows) {
+        return;
+      }
       handlePointerMove(e.clientX, e.clientY, e);
     };
 
@@ -398,20 +443,18 @@ export default function TableView({
       dragStateRef.current.isDraggingRows = false;
       dragStateRef.current.startColIndex = null;
       dragStateRef.current.startRowIndex = null;
-
       setIsDraggingColumns(false);
       setIsDraggingRows(false);
       setStartColIndex(null);
       setStartRowIndex(null);
     };
 
-    // Touch equivalents
     const handleTouchMove = (e) => {
-      const { isDraggingCols, isDraggingRows } = dragStateRef.current;
-      if (!isDraggingCols && !isDraggingRows) return;
+      if (!dragStateRef.current.isDraggingCols && !dragStateRef.current.isDraggingRows) {
+        return;
+      }
       if (e.touches.length === 1) {
         const touch = e.touches[0];
-        // e.preventDefault() se hace dentro de handlePointerMove
         handlePointerMove(touch.clientX, touch.clientY, e);
       }
     };
@@ -421,7 +464,6 @@ export default function TableView({
       dragStateRef.current.isDraggingRows = false;
       dragStateRef.current.startColIndex = null;
       dragStateRef.current.startRowIndex = null;
-
       setIsDraggingColumns(false);
       setIsDraggingRows(false);
       setStartColIndex(null);
@@ -439,13 +481,9 @@ export default function TableView({
       document.removeEventListener('touchmove', handleTouchMove);
       document.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [containerRef]);
+  }, [rows]);
 
-  /**
-   * handleHeaderClick:
-   *  - Al hacer click en header, si colId es _selectIndex => seleccionar toda la tabla
-   *    o si no => seleccionar toda la columna.
-   */
+  // Click en cabecera: seleccionar toda la tabla o columna
   const handleHeaderClick = (e, colIndex, colId) => {
     if (e.target.classList.contains('resize-handle')) return;
     if (colId === '_selectIndex') {
@@ -455,20 +493,17 @@ export default function TableView({
     selectEntireColumn(colIndex, colId);
   };
 
-  /**
-   * selectColumnRange:
-   *  - Selecciona un rango de columnas [start, end] en TODAS las filas.
-   */
+  // Seleccionar rango de columnas [start, end] en TODAS las filas
   function selectColumnRange(start, end) {
     const min = Math.min(start, end);
     const max = Math.max(start, end);
     const visibleCols = table.getVisibleFlatColumns();
     const newSelected = [];
     rows.forEach((row) => {
-      const rowIndex = row.id;
+      const rowId = row.id;
       for (let c = min; c <= max; c++) {
-        if (visibleCols[c].id === '_selectIndex') continue; // omitir col índice
-        newSelected.push({ id: rowIndex, colField: visibleCols[c].id });
+        if (visibleCols[c]?.id === '_selectIndex') continue;
+        newSelected.push({ id: rowId, colField: visibleCols[c].id });
       }
     });
     setSelectedCells(newSelected);
@@ -476,10 +511,7 @@ export default function TableView({
     setFocusCell({ rowIndex: 0, colIndex: min });
   }
 
-  /**
-   * selectRowRange:
-   *  - Selecciona un rango de filas [start, end] en TODAS las columnas.
-   */
+  // Seleccionar rango de filas [start, end] en TODAS las columnas
   function selectRowRange(start, end) {
     const min = Math.min(start, end);
     const max = Math.max(start, end);
@@ -488,10 +520,10 @@ export default function TableView({
     for (let r = min; r <= max; r++) {
       const row = rows[r];
       if (!row) continue;
-      const rowIndex = row.id;
+      const rowId = row.id;
       for (let c = 0; c < visibleCols.length; c++) {
         if (visibleCols[c].id === '_selectIndex') continue;
-        newSelected.push({ id: rowIndex, colField: visibleCols[c].id });
+        newSelected.push({ id: rowId, colField: visibleCols[c].id });
       }
     }
     setSelectedCells(newSelected);
@@ -499,10 +531,7 @@ export default function TableView({
     setFocusCell({ rowIndex: min, colIndex: 1 });
   }
 
-  /**
-   * selectEntireRow:
-   *  - Selecciona todas las columnas de la fila rIndex (excepto col índice).
-   */
+  // Seleccionar fila completa
   function selectEntireRow(rIndex, rowId) {
     const visibleCols = table.getVisibleFlatColumns();
     const newCells = visibleCols
@@ -513,10 +542,7 @@ export default function TableView({
     setFocusCell({ rowIndex: rIndex, colIndex: 1 });
   }
 
-  /**
-   * selectEntireColumn:
-   *  - Selecciona todas las filas de la columna colId (excepto las filas en col índice).
-   */
+  // Seleccionar columna completa
   function selectEntireColumn(colIndex, colId) {
     const newSelected = [];
     rows.forEach((row) => {
@@ -527,71 +553,41 @@ export default function TableView({
     setFocusCell({ rowIndex: 0, colIndex });
   }
 
-  /**
-   * selectAllCells:
-   *  - Selecciona todas las celdas de la tabla (excepto la columna índice).
-   */
+  // Seleccionar toda la tabla
   function selectAllCells() {
     const allCells = [];
     const visibleCols = table.getVisibleFlatColumns();
     rows.forEach((row) => {
-      const rowIndex = row.id;
       visibleCols.forEach((col) => {
-        if (col.id === '_selectIndex') return;
-        allCells.push({ id: rowIndex, colField: col.id });
+        if (col.id !== '_selectIndex') {
+          allCells.push({ id: row.id, colField: col.id });
+        }
       });
     });
     setSelectedCells(allCells);
-    // Anclar foco en la primera col real (que no sea índice)
     setAnchorCell({ rowIndex: 0, colIndex: 1 });
     setFocusCell({ rowIndex: 0, colIndex: 1 });
   }
 
-  // --------------------------------------------------------------------------
-  // Efecto de auto-copiado (tras 1s) luego de cambiar la selección
-  // --------------------------------------------------------------------------
-  const autoCopyTimerRef = useRef(null);
+  // -------------------------------------
+  // 8) Highlight de fila al hacer click
+  // -------------------------------------
+  const [highlightedRowIndex, setHighlightedRowIndex] = useState(null);
+  const handleCellClick = (rowIndex) => {
+    setHighlightedRowIndex(rowIndex);
+  };
 
-  useEffect(() => {
-    if (!selectedCells?.length) return;
-    if (editingCell) return; // No copiar mientras se edita
-    if (autoCopyTimerRef.current) {
-      clearTimeout(autoCopyTimerRef.current);
-    }
-
-    autoCopyTimerRef.current = setTimeout(async () => {
-      if (!document.hasFocus()) {
-        console.warn('[AutoCopy] Documento sin foco, no copiamos.');
-        return;
-      }
-      await doCopyCells(selectedCells);
-    }, AUTO_COPY_DELAY);
-
-    return () => {
-      if (autoCopyTimerRef.current) clearTimeout(autoCopyTimerRef.current);
-    };
-  }, [selectedCells, editingCell]);
-
-  /**
-   * getColumnDefWidth: retorna width definido en originalColumnsDef, o 80
-   */
+  // -------------------------------------
+  // 9) Ancho de columnas
+  // -------------------------------------
   function getColumnDefWidth(colId) {
     const col = originalColumnsDef.find((c) => c.accessorKey === colId);
     return col?.width ?? 80;
   }
 
-  // --------------------------------------------------------------------------
-  // Resaltar (row highlight) al hacer clic en una celda (solo efecto visual)
-  // --------------------------------------------------------------------------
-  const [highlightedRowIndex, setHighlightedRowIndex] = useState(null);
-
-  const handleCellClick = (rowIndex) => {
-    setHighlightedRowIndex(rowIndex);
-  };
-
-  // --------------------------------------------------------------------------
+  // -------------------------------------
   // Render principal
-  // --------------------------------------------------------------------------
+  // -------------------------------------
   return (
     <Box
       ref={containerRef}
@@ -603,8 +599,12 @@ export default function TableView({
         fontSize: '12px',
         backgroundColor: 'var(--color-bg-paper)',
         outline: 'none',
+        width: '100%',
+        maxHeight: '1000px', // Scroll vertical si excede
+        overflowX: 'auto',
+        overflowY: 'auto',
       }}
-      tabIndex={0}
+      tabIndex={0} // Para poder detectar teclas (Arrow, etc.)
     >
       {/* Indicador de carga */}
       {loading && (
@@ -657,7 +657,6 @@ export default function TableView({
       )}
 
       <table className="custom-table">
-        {/* Ajustes de ancho de columnas con colgroup */}
         <colgroup>
           {table.getVisibleFlatColumns().map((col, cIndex) => {
             const width = columnWidths[col.id] ?? getColumnDefWidth(col.id);
@@ -697,9 +696,7 @@ export default function TableView({
                     }}
                     onClick={(e) => handleHeaderClick(e, hIndex, colId)}
                     onMouseDown={(e) => handleHeaderMouseDown(e, hIndex, colId)}
-                    onTouchStart={(e) =>
-                      handleHeaderTouchStart(e, hIndex, colId)
-                    }
+                    onTouchStart={(e) => handleHeaderTouchStart(e, hIndex, colId)}
                   >
                     <div className="column-header-content">
                       <span
@@ -721,7 +718,10 @@ export default function TableView({
                               evt.stopPropagation();
                               handleOpenMenu(evt, colId);
                             }}
-                            sx={{ color: 'var(--color-text)', padding: '2px' }}
+                            sx={{
+                              color: 'var(--color-text)',
+                              padding: '2px',
+                            }}
                           >
                             <FilterListIcon
                               fontSize="inherit"
@@ -732,7 +732,7 @@ export default function TableView({
                       )}
                     </div>
 
-                    {/* Manilla para resize */}
+                    {/* Manija de resize */}
                     <div
                       className="resize-handle"
                       onMouseDown={(evt) => {
@@ -749,12 +749,12 @@ export default function TableView({
 
         <tbody>
           {rows.map((row, rIndex) => {
-            const rowIndex = row.id; // ID interno react-table
+            const rowId = row.id;
             const rowIsHighlighted = highlightedRowIndex === rIndex;
 
             return (
               <tr
-                key={rowIndex}
+                key={rowId}
                 style={{
                   height: ROW_HEIGHT,
                   backgroundColor: rowIsHighlighted
@@ -766,18 +766,16 @@ export default function TableView({
                   const colId = cell.column.id;
                   const isIndexCol = colId === '_selectIndex';
 
-                  // Verificar si la celda está en la selección/copiado
+                  // Ver si la celda está en la selección
                   const isSelected = selectedCells.some(
-                    (sc) => sc.id === rowIndex && sc.colField === colId
+                    (sc) => sc.id === rowId && sc.colField === colId
                   );
                   const isCopied = copiedCells.some(
-                    (cc) => cc.id === rowIndex && cc.colField === colId
+                    (cc) => cc.id === rowId && cc.colField === colId
                   );
 
-                  const inEditingMode = isEditingCell(rowIndex, colId);
+                  const inEditingMode = isEditingCell(rowId, colId);
                   const rawValue = cell.getValue();
-
-                  // Si hay un cell renderer personalizado
                   const customRender = cell.column.columnDef.cell
                     ? cell.column.columnDef.cell({
                         getValue: () => rawValue,
@@ -786,7 +784,6 @@ export default function TableView({
                         table,
                       })
                     : rawValue;
-
                   const displayValue = safeDisplayValue(customRender);
 
                   let cellContent;
@@ -829,19 +826,17 @@ export default function TableView({
                         cursor: isIndexCol ? 'pointer' : 'auto',
                       }}
                       onDoubleClick={() =>
-                        handleDoubleClick(rowIndex, colId, displayValue)
+                        handleDoubleClick(rowId, colId, displayValue)
                       }
                       onClick={() => handleCellClick(rIndex)}
-                      // MOUSE para la fila índice
                       onMouseDown={(evt) => {
                         if (isIndexCol) {
-                          handleRowIndexMouseDown(evt, rIndex, rowIndex);
+                          handleRowIndexMouseDown(evt, rIndex, rowId);
                         }
                       }}
-                      // TOUCH para la fila índice
                       onTouchStart={(evt) => {
                         if (isIndexCol && evt.touches.length === 1) {
-                          handleRowIndexTouchStart(evt, rIndex, rowIndex);
+                          handleRowIndexTouchStart(evt, rIndex, rowId);
                         }
                       }}
                     >
@@ -855,7 +850,7 @@ export default function TableView({
         </tbody>
       </table>
 
-      {/* Popover: Configurar filtros de columna */}
+      {/* Popover para configuración de filtros por columna */}
       <Popover
         open={Boolean(anchorEl)}
         anchorEl={anchorEl}
@@ -871,7 +866,7 @@ export default function TableView({
         />
       </Popover>
 
-      {/* Menú contextual (copiar, ocultar, etc.) */}
+      {/* Menú contextual (copiar, ocultar col/filas) */}
       <Menu
         open={contextMenu !== null}
         onClose={handleCloseContextMenu}

@@ -90,8 +90,7 @@
   --navbar-button-bg: #8e8e8e;
   --navbar-hover-bg: rgba(255, 255, 255, 0.2);
   --navbar-elevation: 0px 2px 8px rgba(0, 0, 0, 0.7);
-
-  --color-filterbar-bg: linear-gradient(to right, #b20076, #121212);
+  --color-filterbar-bg: linear-gradient(to right, #121212, #b20076);
 
   /* Usamos #b20076 en lugar de #1e88e5 con los mismos canales alfa */
   --color-table-index-colgroup: #b2007626; /* (0.15 de opacidad) */
@@ -206,7 +205,6 @@ button:disabled {
    8. Custom Table Styles (para .custom-table)
 ---------------------------------------------------------------------- */
 .custom-table {
-  border-collapse: collapse;
   width: 100%;
   table-layout: fixed;
   background-color: var(--color-bg-paper);

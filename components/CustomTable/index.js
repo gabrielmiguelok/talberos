@@ -10,11 +10,10 @@
  *   3. Filtros, búsqueda global, y ordenamiento.
  *   4. Exportación a Excel.
  *   5. Paginación.
- *   6. Soporte para selección de celdas y copiado.
  *
  * DEPENDENCIAS:
  *   - react, xlsx, @tanstack/react-table, etc.
- *   - Hooks personalizados: useDebouncedValue, useCellSelection.
+ *   - Hooks personalizados: useDebouncedValue.
  *   - Componentes auxiliares: FiltersToolbar, TableSection, Pagination.
  *
  * EJEMPLO DE USO:
@@ -22,8 +21,7 @@
  * <CustomTable
  *   data={dataArray}
  *   columnsDef={columnsDefinition}
- *   // themeMode por defecto "light"
- *   // O "dark" si quieres iniciar en oscuro
+ *   themeMode="dark" // o "light"
  *   pageSize={50}
  *   loading={isLoading}
  *   filtersToolbarProps={{ ... }}
@@ -35,7 +33,7 @@
  * ~~~
  */
 
-import React, { useRef, useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import {
   createColumnHelper,
@@ -45,7 +43,6 @@ import {
 } from '@tanstack/react-table';
 
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
-import useCellSelection from '../hooks/useCellSelection';
 import {
   FilterFlow,
   applySorting,
@@ -57,26 +54,10 @@ import FiltersToolbar from '../toolbar/FiltersToolbar';
 import TableSection from '../TableView';
 import Pagination from './Pagination';
 
-/**
- * Componente principal: CustomTable
- *
- * @param {Array}  data              - Filas de la tabla.
- * @param {Array}  columnsDef        - Definición de columnas.
- * @param {string} [themeMode='light'] - "light" (por defecto) o "dark".
- * @param {number} [pageSize=50]     - Cant. de filas por página.
- * @param {boolean} [loading=false]  - Indica si está cargando.
- * @param {Object} [filtersToolbarProps] - Props p/ `FiltersToolbar`.
- * @param {Function} [onRefresh]     - Callback del botón "Refrescar".
- * @param {boolean} [showFiltersToolbar=true] - Muestra la barra de filtros.
- * @param {Function} [onHideColumns] - Callback para ocultar columnas.
- * @param {Function} [onHideRows]    - Callback para ocultar filas.
- *
- * @returns {JSX.Element}
- */
 export default function CustomTable({
   data,
   columnsDef,
-  themeMode = 'light',  // Valor inicial
+  themeMode = 'light',
   pageSize = 50,
   loading,
   filtersToolbarProps,
@@ -90,23 +71,26 @@ export default function CustomTable({
   // ---------------------------
   const [internalThemeMode, setInternalThemeMode] = useState(themeMode);
 
-  // Toggle local
+  // Alternar tema internamente
   const handleThemeToggleLocal = () => {
-    setInternalThemeMode((prevMode) => (prevMode === 'dark' ? 'light' : 'dark'));
+    setInternalThemeMode((prevMode) =>
+      prevMode === 'dark' ? 'light' : 'dark'
+    );
   };
 
-  // Determina si está en modo oscuro
   const isDarkMode = internalThemeMode === 'dark';
 
   // ---------------------------
   // 2) Definición de columnas
   // ---------------------------
-  const finalColumns = useMemo(() => {
-    return columnsDef && columnsDef.length > 0 ? columnsDef : [];
-  }, [columnsDef]);
+  const finalColumns = useMemo(
+    () => (columnsDef && columnsDef.length > 0 ? columnsDef : []),
+    [columnsDef]
+  );
 
   const columnHelper = createColumnHelper();
 
+  // Agregamos la columna índice al inicio
   const indexedColumns = useMemo(() => {
     const selectIndexColumn = columnHelper.display({
       id: '_selectIndex',
@@ -136,30 +120,30 @@ export default function CustomTable({
   }, [finalColumns, columnHelper]);
 
   // ---------------------------
-  // 3) Filtros, ordenamiento
+  // 3) Filtros y ordenamiento
   // ---------------------------
-  const containerRef = useRef(null);
-
-  // Filtros por columna
   const [columnFilters, setColumnFilters] = useState({});
-
-  // Filtro global (con debounce)
   const [tempGlobalFilter, setTempGlobalFilter] = useState('');
   const debouncedGlobalFilter = useDebouncedValue(tempGlobalFilter, 500);
 
-  // Ordenamiento
   const [sorting, setSorting] = useState({ columnId: '', direction: '' });
 
   const toggleSort = (colId) => {
     setSorting((prev) => {
-      if (prev.columnId !== colId) return { columnId: colId, direction: 'desc' };
-      if (prev.direction === 'desc') return { columnId: colId, direction: 'asc' };
-      if (prev.direction === 'asc') return { columnId: '', direction: '' };
+      if (prev.columnId !== colId) {
+        return { columnId: colId, direction: 'desc' };
+      }
+      if (prev.direction === 'desc') {
+        return { columnId: colId, direction: 'asc' };
+      }
+      if (prev.direction === 'asc') {
+        return { columnId: '', direction: '' };
+      }
       return { columnId: colId, direction: 'desc' };
     });
   };
 
-  // Forzar operador 'range' si la columna es numérica y hay min/max
+  // Forzar 'range' si la columna es numérica y se ingresa min/max
   useEffect(() => {
     Object.keys(columnFilters).forEach((colId) => {
       const colDef = finalColumns.find((c) => c.accessorKey === colId);
@@ -199,7 +183,7 @@ export default function CustomTable({
   }, [data, finalColumns, columnFilters, debouncedGlobalFilter, sorting]);
 
   // ---------------------------
-  // 5) Instancia de la tabla
+  // 5) Instancia react-table
   // ---------------------------
   const table = useReactTable({
     data: filteredData,
@@ -218,71 +202,7 @@ export default function CustomTable({
   });
 
   // ---------------------------
-  // 6) Selección de celdas, copiado
-  // ---------------------------
-  const {
-    selectedCells,
-    setSelectedCells,
-    anchorCell,
-    focusCell,
-    setFocusCell,
-    setAnchorCell,
-    handleKeyDownArrowSelection,
-  } = useCellSelection(
-    containerRef,
-    getCellsInfo,
-    filteredData,
-    finalColumns,
-    table
-  );
-
-  const [copiedCells, setCopiedCells] = useState([]);
-
-  function getCellsInfo() {
-    if (!containerRef.current) return [];
-    const cellEls = containerRef.current.querySelectorAll('[data-row][data-col]');
-    const cells = [];
-    cellEls.forEach((el) => {
-      const rect = el.getBoundingClientRect();
-      const rowIdString = el.getAttribute('data-row');
-      const cIndex = parseInt(el.getAttribute('data-col'), 10);
-
-      if (rowIdString == null || isNaN(cIndex) || rect.width <= 0 || rect.height <= 0) {
-        return;
-      }
-
-      const rowId = rowIdString;
-      const colObj = table.getVisibleFlatColumns()[cIndex];
-      if (colObj) {
-        cells.push({
-          id: rowId,
-          colField: colObj.id,
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
-        });
-      }
-    });
-    return cells;
-  }
-
-  // Listener para flechas en containerRef
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (!containerRef.current?.contains(document.activeElement)) return;
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        handleKeyDownArrowSelection(e);
-      }
-    };
-    containerRef.current?.addEventListener('keydown', handleKeyDown);
-    return () => {
-      containerRef.current?.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleKeyDownArrowSelection]);
-
-  // ---------------------------
-  // 7) Exportar a Excel
+  // 6) Exportar a Excel
   // ---------------------------
   const handleDownloadExcel = () => {
     try {
@@ -312,7 +232,7 @@ export default function CustomTable({
   };
 
   // ---------------------------
-  // 8) Ancho de columnas
+  // 7) Ancho de columnas
   // ---------------------------
   const [columnWidths, setColumnWidths] = useState({});
 
@@ -337,12 +257,11 @@ export default function CustomTable({
         <FiltersToolbar
           {...(filtersToolbarProps || {})}
           globalFilterValue={tempGlobalFilter}
-          onGlobalFilterChange={(val) => setTempGlobalFilter(val)}
+          onGlobalFilterChange={setTempGlobalFilter}
           onDownloadExcel={handleDownloadExcel}
           onRefresh={onRefresh}
           isDarkMode={isDarkMode}
-          // Sobrescribimos el onThemeToggle para manejarlo local:
-          onThemeToggle={handleThemeToggleLocal}
+          onThemeToggle={handleThemeToggleLocal} // Modo oscuro/claro interno
         />
       )}
 
@@ -364,15 +283,6 @@ export default function CustomTable({
           columnsDef={finalColumns}
           originalColumnsDef={finalColumns}
           loading={loading}
-          containerRef={containerRef}
-          selectedCells={selectedCells}
-          setSelectedCells={setSelectedCells}
-          anchorCell={anchorCell}
-          focusCell={focusCell}
-          setFocusCell={setFocusCell}
-          setAnchorCell={setAnchorCell}
-          copiedCells={copiedCells}
-          setCopiedCells={setCopiedCells}
           columnWidths={columnWidths}
           setColumnWidth={handleSetColumnWidth}
           sorting={sorting}

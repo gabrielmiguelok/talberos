@@ -5,27 +5,87 @@
  *
  * DESCRIPCIÓN GENERAL:
  *   Hook React para gestionar la selección de celdas en una tabla, con comportamiento
- *   tipo "Excel". Permite:
- *    1. Selección por clic y arrastre con el mouse (o touch).
- *    2. Manejo de teclas de flecha, con soporte para combinaciones (Shift, Ctrl/Cmd)
- *       y salto inteligente (similar a Excel).
- *    3. Selección inmediata al primer clic, sin requerir un segundo "drag click".
- *    4. Integración con react-table (@tanstack/react-table).
+ *   tipo "Excel". Incluye:
+ *     1) Selección por clic y arrastre con mouse o touch (con scroll automático
+ *        cuando el puntero se acerca a los bordes).
+ *     2) Selección con teclas de flecha (↑, ↓, ←, →), admitiendo Shift y Ctrl/Cmd
+ *        para rango y “saltos inteligentes” estilo Excel.
+ *     3) Selección inmediata al primer clic sin necesidad de un "segundo" arrastre.
+ *     4) Integración con React Table (vía @tanstack/react-table).
+ *     5) Control de scroll automático para una UX más fluida (similar a Excel).
  *
- *   Principios aplicados:
- *    - SRP: Se encarga únicamente de la lógica de selección de celdas y sus interacciones
- *      con el teclado y mouse/touch.
- *    - DIP: Recibe `containerRef`, `getCellsInfo`, etc. por props.
+ *   Principios SOLID aplicados:
+ *     - SRP (Single Responsibility Principle): El hook se encarga exclusivamente
+ *       de la lógica de selección, arrastre y eventos de teclado.
+ *     - OCP (Open/Closed Principle): Estructurado para poder agregar más funciones
+ *       de selección sin modificar el núcleo.
+ *     - LSP (Liskov Substitution Principle): Retorna siempre el mismo tipo de objeto,
+ *       por lo que puede sustituirse sin romper el resto de la app.
+ *     - ISP (Interface Segregation Principle): Sólo expone los métodos imprescindibles
+ *       para su uso (no obliga a usar métodos innecesarios).
+ *     - DIP (Dependency Inversion Principle): No depende de implementaciones concretas;
+ *       recibe las referencias y funciones clave (containerRef, getCellsInfo, etc.) por
+ *       inyección.
  *
- *   @version 4.1
- */
+ * @version 5.0
+ ************************************************************************************/
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
  * useCellSelection
- * Hook que gestiona la selección de celdas estilo Excel, con mouse/touch y teclas de flecha,
- * Shift, Ctrl/Cmd, etc.
+ * -----------------------------------------------------------------------------
+ * Hook personalizado para gestionar la selección de celdas en una tabla “estilo Excel”,
+ * con posibilidad de arrastre (mouse/touch) y navegación por flechas. Implementa:
+ *
+ *  - Selección por arrastre con el mouse/touch, incluyendo auto-scroll en los bordes.
+ *  - Selección con flechas (↑, ↓, ←, →) usando Shift y Ctrl/Cmd.
+ *  - Ancla (anchorCell) y foco (focusCell) para selección por rangos.
+ *  - Escalabilidad y bajo acoplamiento gracias a la inyección de dependencias:
+ *    `containerRef`, `getCellsInfo`, `table`, etc.
+ *
+ * Parámetros:
+ *  @param {object} containerRef  - useRef del contenedor principal de la tabla.
+ *  @param {Function} getCellsInfo - Función que retorna un array de celdas con
+ *    posición y tamaño: [{ id, colField, x, y, width, height }, ...].
+ *  @param {Array} data          - Datos originales de la tabla (no siempre se usa).
+ *  @param {Array} columnsDef    - Definición de columnas (no siempre se usa directamente).
+ *  @param {object} table        - Instancia de React Table (@tanstack/react-table).
+ *
+ * Retorna un objeto con:
+ *  - selectionBox: info del rectángulo de selección (x, y, width, height).
+ *  - selectedCells: array de celdas seleccionadas { id, colField }.
+ *  - setSelectedCells: setter para la selección.
+ *  - anchorCell: objeto { rowIndex, colIndex } que indica la celda "ancla".
+ *  - focusCell: objeto { rowIndex, colIndex } que indica la celda en foco.
+ *  - setAnchorCell, setFocusCell: setters correspondientes.
+ *  - handleKeyDownArrowSelection: función para manejar flechas + shift/ctrl, se
+ *    sugiere llamarla en onKeyDown del contenedor principal.
+ *
+ * Ejemplo básico de uso:
+ * -----------------------------------------------------------------------------
+ *  const {
+ *    selectedCells,
+ *    anchorCell,
+ *    focusCell,
+ *    handleKeyDownArrowSelection,
+ *    ...
+ *  } = useCellSelection(
+ *       containerRef,
+ *       getCellsInfo,
+ *       data,
+ *       columnsDef,
+ *       table
+ *     );
+ *
+ *  <div
+ *    ref={containerRef}
+ *    tabIndex={0} // imprescindible para recibir eventos de teclado
+ *    onKeyDown={handleKeyDownArrowSelection}
+ *  >
+ *    ... tu render de tabla ...
+ *  </div>
+ * -----------------------------------------------------------------------------
  */
 export default function useCellSelection(
   containerRef,
@@ -34,9 +94,9 @@ export default function useCellSelection(
   columnsDef,
   table
 ) {
-  // ---------------------------------------------------
-  // ESTADOS PRINCIPALES
-  // ---------------------------------------------------
+  // ----------------------------------------------------------------------------
+  // [1] ESTADOS PRINCIPALES
+  // ----------------------------------------------------------------------------
   const [selectionBox, setSelectionBox] = useState(null);
   const [isSelecting, setIsSelecting] = useState(false);
 
@@ -44,22 +104,35 @@ export default function useCellSelection(
   const [anchorCell, setAnchorCell] = useState(null);
   const [focusCell, setFocusCell] = useState(null);
 
-  // ---------------------------------------------------
-  // REFS AUXILIARES
-  // ---------------------------------------------------
+  // ----------------------------------------------------------------------------
+  // [2] REFS AUXILIARES
+  // ----------------------------------------------------------------------------
   const startPointRef = useRef({ x: 0, y: 0 });
   const draggingRef = useRef(false);
 
-  // ---------------------------------------------------
-  // DATOS DERIVADOS
-  // ---------------------------------------------------
+  // ----------------------------------------------------------------------------
+  // [3] DATOS DERIVADOS
+  // ----------------------------------------------------------------------------
   const rows = table.getRowModel().rows;
   const colCount = table.getVisibleFlatColumns().length;
-  const threshold = 0; // Distancia mínima para que se considere arrastre
 
-  // ---------------------------------------------------
-  // FUNCIONES DE AYUDA
-  // ---------------------------------------------------
+  // Umbral para considerar que el mouse/touch se ha movido lo suficiente como
+  // para iniciar el "drag" de selección.
+  const DRAG_THRESHOLD = 0;
+
+  // Distancia en px cerca del borde para iniciar el auto-scroll.
+  const EDGE_SCROLL_THRESHOLD = 30; // px
+
+  // Velocidad de scroll cuando arrastramos cerca del borde.
+  const SCROLL_SPEED = 15; // px por "tick"
+
+  // ----------------------------------------------------------------------------
+  // [4] FUNCIONES DE UTILIDAD
+  // ----------------------------------------------------------------------------
+  /**
+   * rectsIntersect
+   * Verifica si el rectángulo r1 (x,y,width,height) intersecta con la celda (x,y,width,height).
+   */
   const rectsIntersect = useCallback((r1, cell) => {
     const r2 = { x: cell.x, y: cell.y, width: cell.width, height: cell.height };
     return !(
@@ -72,12 +145,17 @@ export default function useCellSelection(
 
   const isEmpty = (val) => val === null || val === undefined || val === '';
 
+  /**
+   * getCellValue
+   * Devuelve el valor de la celda en (rowIndex, colIndex) usando la data de React Table.
+   */
   const getCellValue = (r, c) =>
-    rows[r]?.original[table.getVisibleFlatColumns()[c]?.id];
+    rows[r]?.original?.[table.getVisibleFlatColumns()[c]?.id];
 
   /**
    * getCellsInRange
-   *  Retorna un array de celdas [ {id, colField}, ... ] en el rango [start, end].
+   * Dada una celda de inicio y otra de fin (rowIndex,colIndex), retorna todas las celdas
+   * que estén en ese rectángulo (rango).
    */
   const getCellsInRange = useCallback(
     (start, end) => {
@@ -101,14 +179,20 @@ export default function useCellSelection(
     [rows, table]
   );
 
-  // ---------------------------------------------------
-  // LÓGICA DE TECLADO
-  // ---------------------------------------------------
+  // ----------------------------------------------------------------------------
+  // [5] LÓGICA TECLADO (FLECHAS, SHIFT, CTRL)
+  // ----------------------------------------------------------------------------
   /**
    * findLastCellInDirection
-   *  - Emula salto Excel (Ctrl + flechas).
+   * Emula los “saltos” de Excel cuando se mantiene Ctrl + flecha. Avanza
+   * por celdas vacías o no-vacías hasta que cambia la condición.
    */
-  const findLastCellInDirection = (current, direction, ctrlPressed, shiftPressed) => {
+  const findLastCellInDirection = (
+    current,
+    direction,
+    ctrlPressed,
+    shiftPressed
+  ) => {
     if (!ctrlPressed) return current;
 
     let { rowIndex, colIndex } = current;
@@ -129,18 +213,20 @@ export default function useCellSelection(
     let newCol = colIndex;
     let moved = false;
 
-    // Avanzamos hasta que cambie la condición (de vacío a no vacío, o viceversa).
     while (true) {
       const nextRow = newRow + dr;
       const nextCol = newCol + dc;
       if (nextRow < 0 || nextRow > maxRow || nextCol < 0 || nextCol > maxCol) {
         break;
       }
+
       const val = getCellValue(nextRow, nextCol);
       const cellEmpty = isEmpty(val);
 
+      // Si la celda de origen está vacía, paramos al encontrar la primera no vacía.
+      // Si no está vacía, paramos al encontrar la primera vacía.
       if (startEmpty) {
-        // Avanzamos mientras siga vacío, o hasta encontrar no vacío
+        // Avanzamos mientras siga vacío
         if (!cellEmpty) {
           newRow = nextRow;
           newCol = nextCol;
@@ -152,7 +238,7 @@ export default function useCellSelection(
           moved = true;
         }
       } else {
-        // start NO vacío
+        // Origen no vacío: avanzamos mientras no esté vacío
         if (cellEmpty) break;
         newRow = nextRow;
         newCol = nextCol;
@@ -160,7 +246,7 @@ export default function useCellSelection(
       }
     }
 
-    // Si no hubo "salto", avanzar 1 celda
+    // Si no hubo “salto” grande, avanzamos 1 casilla
     if (!moved) {
       const singleRow = rowIndex + dr;
       const singleCol = colIndex + dc;
@@ -173,8 +259,9 @@ export default function useCellSelection(
         newRow = singleRow;
         newCol = singleCol;
       }
-    } else if (moved && shiftPressed) {
-      // Con shift, damos un paso extra
+    }
+    // Si sí hubo salto y hay shift, avanzamos una más
+    else if (moved && shiftPressed) {
       const extraRow = newRow + dr;
       const extraCol = newCol + dc;
       if (
@@ -193,7 +280,9 @@ export default function useCellSelection(
 
   /**
    * handleKeyDownArrowSelection
-   *  - Lógica principal para flechas con o sin Shift/Ctrl.
+   * Método principal para gestionar flechas + shift/ctrl y actualizar la selección.
+   * Suele usarse en onKeyDown del contenedor:
+   *   <div tabIndex={0} onKeyDown={handleKeyDownArrowSelection}>
    */
   const handleKeyDownArrowSelection = useCallback(
     (e) => {
@@ -201,37 +290,38 @@ export default function useCellSelection(
       const ctrl = e.ctrlKey || e.metaKey;
       const shift = e.shiftKey;
 
-      // Si no hay anchorCell y el usuario presiona Shift, forzamos anclar en la focusCell
       let tempAnchor = anchorCell;
+      // Si se presiona Shift y no hay ancla, usamos la celda en foco
       if (shift && !tempAnchor) {
         tempAnchor = { ...focusCell };
       }
 
       let newFocus = { ...focusCell };
 
-      // Salto tipo Excel con Ctrl
+      // Salto Excel con Ctrl
       if (ctrl) {
         newFocus = findLastCellInDirection(newFocus, e.key, true, shift);
       } else {
         // Movimiento normal de 1 celda
         const maxRow = rows.length - 1;
-        const maxCol = table.getVisibleFlatColumns().length - 1;
+        const maxCol = colCount - 1;
 
-        if (e.key === 'ArrowUp')
+        if (e.key === 'ArrowUp') {
           newFocus.rowIndex = Math.max(0, focusCell.rowIndex - 1);
-        if (e.key === 'ArrowDown')
+        } else if (e.key === 'ArrowDown') {
           newFocus.rowIndex = Math.min(maxRow, focusCell.rowIndex + 1);
-        if (e.key === 'ArrowLeft')
+        } else if (e.key === 'ArrowLeft') {
           newFocus.colIndex = Math.max(0, focusCell.colIndex - 1);
-        if (e.key === 'ArrowRight')
+        } else if (e.key === 'ArrowRight') {
           newFocus.colIndex = Math.min(maxCol, focusCell.colIndex + 1);
+        }
       }
 
       // Actualizamos el foco
       setFocusCell(newFocus);
 
       if (shift && tempAnchor) {
-        // Selección de rango con Shift
+        // Selección de rango con shift
         const newCells = getCellsInRange(tempAnchor, newFocus);
         setSelectedCells(newCells);
       } else {
@@ -244,10 +334,9 @@ export default function useCellSelection(
         tempAnchor = newFocus;
       }
 
-      // Guardamos el anchorCell actualizado (si corresponde)
       setAnchorCell(tempAnchor);
 
-      // Scroll automático a la celda enfocada
+      // Auto-scroll a la celda en foco
       if (containerRef.current) {
         const selector = `[data-row="${newFocus.rowIndex}"][data-col="${newFocus.colIndex}"]`;
         const cellEl = containerRef.current.querySelector(selector);
@@ -256,55 +345,99 @@ export default function useCellSelection(
         }
       }
 
+      // Prevenir scrolling del navegador al usar flechas
       e.preventDefault();
     },
     [
       focusCell,
       anchorCell,
       rows,
+      colCount,
       table,
       getCellsInRange,
       containerRef,
-      findLastCellInDirection,
       setSelectedCells,
     ]
   );
 
-  // ---------------------------------------------------
-  // ACTUALIZAR SELECCIÓN
-  // ---------------------------------------------------
+  // ----------------------------------------------------------------------------
+  // [6] MÉTODO AUXILIAR PARA ACTUALIZAR SELECCIÓN
+  // ----------------------------------------------------------------------------
   const updateSelection = useCallback((newSelected) => {
     setSelectedCells(newSelected);
   }, []);
 
-  // ---------------------------------------------------
-  // CLIC + ARRASTRE
-  // ---------------------------------------------------
+  // ----------------------------------------------------------------------------
+  // [7] CLIC + ARRASTRE (INICIO DE SELECCIÓN)
+  // ----------------------------------------------------------------------------
+  /**
+   * handleSingleClickSelection
+   * Comienza la selección cuando se hace clic en una celda sin shift/ctrl.
+   */
   const handleSingleClickSelection = (clickedCellPos) => {
     draggingRef.current = true;
     setIsSelecting(true);
-    document.body.style.userSelect = 'none';
+    document.body.style.userSelect = 'none'; // forzamos no seleccionar texto
 
+    // Anclar y enfocar en la celda que se clickeó
     setAnchorCell(clickedCellPos);
     setFocusCell(clickedCellPos);
 
     const rowId = rows[clickedCellPos.rowIndex]?.id;
     const colField = table.getVisibleFlatColumns()[clickedCellPos.colIndex]?.id;
-
+    // Revisar si ya estaba en selectedCells
     const isAlreadySelected = selectedCells.some(
       (c) => c.id === rowId && c.colField === colField
     );
+
+    // Si no está seleccionada, la seleccionamos
     if (!isAlreadySelected && rowId != null && colField) {
       updateSelection([{ id: rowId, colField }]);
     }
   };
 
-  // ---------------------------------------------------
-  // EVENTOS DE MOUSE
-  // ---------------------------------------------------
+  // ----------------------------------------------------------------------------
+  // [8] AUTO-SCROLL EN BORDES
+  // ----------------------------------------------------------------------------
+  /**
+   * autoScrollIfNeeded
+   * Si el puntero está cerca de los bordes del contenedor, desplazamos el scroll
+   * para que pueda seguir seleccionando.
+   */
+  const autoScrollIfNeeded = useCallback((mouseX, mouseY) => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+
+    // Borde superior
+    if (mouseY - rect.top < EDGE_SCROLL_THRESHOLD) {
+      container.scrollTop -= SCROLL_SPEED;
+    }
+    // Borde inferior
+    if (rect.bottom - mouseY < EDGE_SCROLL_THRESHOLD) {
+      container.scrollTop += SCROLL_SPEED;
+    }
+    // Borde izquierdo
+    if (mouseX - rect.left < EDGE_SCROLL_THRESHOLD) {
+      container.scrollLeft -= SCROLL_SPEED;
+    }
+    // Borde derecho
+    if (rect.right - mouseX < EDGE_SCROLL_THRESHOLD) {
+      container.scrollLeft += SCROLL_SPEED;
+    }
+  }, []);
+
+  // ----------------------------------------------------------------------------
+  // [9] EVENTOS DE MOUSE
+  // ----------------------------------------------------------------------------
+  /**
+   * handleMouseDown:
+   * Empieza la lógica de selección si se hace mousedown sobre la tabla con botón izq.
+   */
   const handleMouseDown = useCallback(
     (e) => {
-      if (e.button !== 0) return; // solo click izq
+      if (e.button !== 0) return; // solo botón izquierdo
       if (!containerRef.current || !containerRef.current.contains(e.target)) {
         return;
       }
@@ -312,7 +445,7 @@ export default function useCellSelection(
       startPointRef.current = { x: e.clientX, y: e.clientY };
       draggingRef.current = false;
 
-      // Detectar la celda
+      // Detectar la celda clicada
       const cellElements = containerRef.current.querySelectorAll(
         '[data-row][data-col]'
       );
@@ -334,6 +467,7 @@ export default function useCellSelection(
         }
       });
 
+      // Si hay celda y no se usó shift/ctrl, iniciamos selección
       if (clickedCellPos && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
         handleSingleClickSelection(clickedCellPos);
       }
@@ -341,11 +475,17 @@ export default function useCellSelection(
     [containerRef, handleSingleClickSelection]
   );
 
+  /**
+   * handleMouseMove:
+   * Mientras arrastramos, calculamos la caja de selección y auto-scroll si está cerca
+   * de los bordes.
+   */
   const handleMouseMove = useCallback(
     (e) => {
       if (!containerRef.current) return;
 
       const { x: sx, y: sy } = startPointRef.current;
+      // Si no tenemos un punto de inicio, no hacemos nada
       if (sx === 0 && sy === 0) return;
 
       const cx = e.clientX;
@@ -353,18 +493,28 @@ export default function useCellSelection(
       const distX = Math.abs(cx - sx);
       const distY = Math.abs(cy - sy);
 
-      if ((distX > threshold || distY > threshold) && draggingRef.current && !isSelecting) {
+      // Detectar si empezamos a "arrastrar"
+      if (
+        (distX > DRAG_THRESHOLD || distY > DRAG_THRESHOLD) &&
+        draggingRef.current &&
+        !isSelecting
+      ) {
         setIsSelecting(true);
         document.body.style.userSelect = 'none';
       }
 
       if (isSelecting) {
         e.preventDefault();
+        // Hacemos auto-scroll si el cursor está cerca del borde
+        autoScrollIfNeeded(cx, cy);
+
+        // Definimos el rectángulo de selección
         const x = Math.min(sx, cx);
         const y = Math.min(sy, cy);
         const box = { x, y, width: distX, height: distY };
         setSelectionBox(box);
 
+        // Obtenemos las celdas que caen dentro de ese rect
         const allCells = getCellsInfo();
         const selectedDuringDrag = allCells.filter((cell) =>
           rectsIntersect(box, cell)
@@ -372,9 +522,20 @@ export default function useCellSelection(
         updateSelection(selectedDuringDrag);
       }
     },
-    [isSelecting, getCellsInfo, rectsIntersect, updateSelection]
+    [
+      isSelecting,
+      autoScrollIfNeeded,
+      containerRef,
+      getCellsInfo,
+      rectsIntersect,
+      updateSelection,
+    ]
   );
 
+  /**
+   * handleMouseUp:
+   * Finaliza el arrastre. Si hay selección, se mantiene en el estado.
+   */
   const handleMouseUp = useCallback(() => {
     if (isSelecting && selectionBox) {
       const allCells = getCellsInfo();
@@ -391,9 +552,9 @@ export default function useCellSelection(
     document.body.style.userSelect = '';
   }, [isSelecting, selectionBox, getCellsInfo, rectsIntersect, updateSelection]);
 
-  // ---------------------------------------------------
-  // EVENTOS DE TOUCH
-  // ---------------------------------------------------
+  // ----------------------------------------------------------------------------
+  // [10] EVENTOS DE TOUCH
+  // ----------------------------------------------------------------------------
   const handleTouchStart = useCallback(
     (e) => {
       if (!containerRef.current?.contains(e.target)) return;
@@ -403,8 +564,10 @@ export default function useCellSelection(
       startPointRef.current = { x: touch.clientX, y: touch.clientY };
       draggingRef.current = false;
 
+      // Detectar celda tocada
       const cellEls = containerRef.current.querySelectorAll('[data-row][data-col]');
       let clickedCellPos = null;
+
       cellEls.forEach((el) => {
         const rect = el.getBoundingClientRect();
         if (
@@ -451,13 +614,16 @@ export default function useCellSelection(
       const distX = Math.abs(cx - sx);
       const distY = Math.abs(cy - sy);
 
-      if (!isSelecting && (distX > threshold || distY > threshold)) {
+      if (!isSelecting && (distX > DRAG_THRESHOLD || distY > DRAG_THRESHOLD)) {
         setIsSelecting(true);
         document.body.style.userSelect = 'none';
       }
 
       if (isSelecting) {
         e.preventDefault();
+        // Auto-scroll en touch
+        autoScrollIfNeeded(cx, cy);
+
         const x = Math.min(sx, cx);
         const y = Math.min(sy, cy);
         const newBox = { x, y, width: distX, height: distY };
@@ -470,7 +636,13 @@ export default function useCellSelection(
         updateSelection(selectedDuringDrag);
       }
     },
-    [isSelecting, getCellsInfo, rectsIntersect, updateSelection]
+    [
+      isSelecting,
+      autoScrollIfNeeded,
+      getCellsInfo,
+      rectsIntersect,
+      updateSelection,
+    ]
   );
 
   const handleTouchEnd = useCallback(() => {
@@ -489,19 +661,22 @@ export default function useCellSelection(
     document.body.style.userSelect = '';
   }, [isSelecting, selectionBox, getCellsInfo, rectsIntersect, updateSelection]);
 
-  // ---------------------------------------------------
-  // REGISTRAR EVENTOS
-  // ---------------------------------------------------
+  // ----------------------------------------------------------------------------
+  // [11] REGISTRO GLOBAL DE EVENTOS
+  // ----------------------------------------------------------------------------
   useEffect(() => {
+    // MOUSE
     document.addEventListener('mousedown', handleMouseDown, { passive: false });
     document.addEventListener('mousemove', handleMouseMove, { passive: false });
     document.addEventListener('mouseup', handleMouseUp, { passive: false });
 
+    // TOUCH
     document.addEventListener('touchstart', handleTouchStart, { passive: false });
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleTouchEnd, { passive: false });
 
     return () => {
+      // Limpiar al desmontar
       document.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
@@ -521,9 +696,9 @@ export default function useCellSelection(
     handleTouchEnd,
   ]);
 
-  // ---------------------------------------------------
-  // RETORNO
-  // ---------------------------------------------------
+  // ----------------------------------------------------------------------------
+  // [12] RETORNO
+  // ----------------------------------------------------------------------------
   return {
     selectionBox,
     selectedCells,
