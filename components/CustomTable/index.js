@@ -1,35 +1,25 @@
 /**
  * Archivo: /components/CustomTable/index.js
- * LICENSE: MIT
+ * Licencia: MIT
  *
  * DESCRIPCIÓN:
  *   - Componente principal que orquesta la tabla y la barra de filtros.
- *   - La paginación se ha movido a `TableView` (aquí llamado `TableSection`),
- *     para centralizar la lógica de scroll y selección.
+ *   - Se apoya en hooks personalizados para lógica de filtrado, sorting, selección, etc.
+ *   - Muestra la barra de filtros (FiltersToolbar) si se indica.
+ *   - Renderiza `TableSection` (sub-componente) donde está la tabla real y la paginación.
  *
- * FUNCIONALIDADES:
- *   - Configura el tema (claro/oscuro).
- *   - Usa `useCustomTableLogic` para obtener la instancia de la tabla (sorting, filtering, etc.).
- *   - Opcionalmente muestra la barra de filtros (FiltersToolbar).
- *   - Renderiza `TableView` (aquí `TableSection`), que incluye la paginación sticky.
+ * PROPÓSITO:
+ *   - Centralizar la configuración y lógica de la tabla (filtros, sorting, etc.)
+ *     para inyectar todo a `TableSection` (que se encarga de la vista pura).
  *
- * PARÁMETROS (props):
- *   - data (array): filas de la tabla.
- *   - columnsDef (array): definición de columnas.
- *   - themeMode (string): "light" o "dark".
- *   - pageSize (number): filas por página.
- *   - loading (boolean): indica si está cargando.
- *   - filtersToolbarProps (object): props adicionales para FiltersToolbar.
- *   - onRefresh (function): callback del botón "Refrescar".
- *   - showFiltersToolbar (boolean): mostrar/ocultar la barra de filtros.
- *   - onHideColumns (function): callback para ocultar columnas.
- *   - onHideRows (function): callback para ocultar filas.
- *
- *   - containerHeight (string): altura (o altura máxima) que queremos usar
- *     en TableView (ej: "500px", "60vh", "calc(100vh - 100px)", etc.).
- *     Por defecto, "400px".
- *
- * @version 1.2
+ * PRINCIPIOS SOLID APLICADOS:
+ *   - SRP (Single Responsibility Principle): Se encarga de orquestar la lógica
+ *     de la tabla y manejar la barra de filtros, sin encargarse directamente
+ *     del renderizado detallado (eso es labor de `TableSection`).
+ *   - OCP (Open-Closed Principle): Preparado para recibir nuevas props que
+ *     extiendan la personalización, sin modificar código interno.
+ *   - DIP (Dependency Inversion Principle): Recibe todo (datos, configuraciones)
+ *     por props y usa hooks con dependencia invertida, facilitando la mantenibilidad.
  */
 
 import React, { useRef, useEffect, useState } from 'react';
@@ -37,12 +27,61 @@ import { useCustomTableLogic } from '../hooks/useCustomTableLogic';
 import { useThemeMode } from '../hooks/useThemeMode';
 import useCellSelection from '../hooks/useCellSelection';
 
-// Barra de filtros (parte superior)
 import FiltersToolbar from '../toolbar/FiltersToolbar';
-
-// El componente que renderiza la tabla real y la paginación sticky
 import TableSection from '../TableView';
 
+/* -------------------------------------------------------------------------- */
+/*                          Definición de props y defaults                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * @typedef CustomTableProps
+ * @property {Array<Object>}  data           - Datos (filas) a mostrar en la tabla.
+ * @property {Array<Object>}  columnsDef     - Definición de columnas (incluyendo accessorKey, widths, etc.).
+ * @property {string}         [themeMode='light']
+ *   Modo de tema (light o dark) que define la apariencia inicial.
+ *
+ * @property {number}         [pageSize=50]
+ *   Número de filas por página a mostrar en la paginación.
+ *
+ * @property {boolean}        [loading=false]
+ *   Indica si la tabla se encuentra en estado de carga (muestra overlay).
+ *
+ * @property {Object}         [filtersToolbarProps]
+ *   Props adicionales para la barra de filtros (FiltersToolbar).
+ *
+ * @property {Function}       [onRefresh]
+ *   Callback opcional que se ejecuta al presionar el botón “Refrescar”.
+ *
+ * @property {boolean}        [showFiltersToolbar=true]
+ *   Controla si se renderiza o no la barra de filtros superior.
+ *
+ * @property {Function}       [onHideColumns]
+ *   Callback para ocultar columnas. Recibe la(s) columna(s) que se desea ocultar.
+ *
+ * @property {Function}       [onHideRows]
+ *   Callback para ocultar filas. Recibe la(s) fila(s) que se desea ocultar.
+ *
+ * @property {string}         [containerHeight='400px']
+ *   Altura (o altura máxima) del contenedor que envuelve la tabla. Puede ser “400px”, “60vh”, etc.
+ *
+ * @property {number}         [rowHeight=15]
+ *   Altura de cada fila, en píxeles.
+ *
+ * @property {string}         [loadingText='Cargando...']
+ *   Texto que se muestra cuando `loading` es true.
+ *
+ * @property {string}         [noResultsText='Sin resultados']
+ *   Texto que se muestra cuando no hay filas que renderizar.
+ *
+ * @property {number}         [autoCopyDelay=1000]
+ *   Retardo (en milisegundos) para realizar auto-copiado tras seleccionar celdas.
+ */
+
+/**
+ * Componente CustomTable
+ * @type {React.FC<CustomTableProps>}
+ */
 export default function CustomTable({
   data,
   columnsDef,
@@ -54,20 +93,16 @@ export default function CustomTable({
   showFiltersToolbar = true,
   onHideColumns,
   onHideRows,
-  /**
-   * Nuevo prop: altura a usar en TableSection.
-   * Por defecto, "400px" si no se pasa nada.
-   */
   containerHeight = '400px',
+  rowHeight = 15,
+  loadingText = 'Cargando...',
+  noResultsText = 'Sin resultados',
+  autoCopyDelay = 1000,
 }) {
-  //
-  // 1) Modo de tema (claro/oscuro)
-  //
+  // 1) Modo de tema (claro u oscuro) controlado por custom hook
   const { themeMode: internalMode, isDarkMode, toggleThemeMode } = useThemeMode(themeMode);
 
-  //
-  // 2) Lógica principal (React Table) desde el custom hook
-  //
+  // 2) Lógica principal de la tabla (React Table) vía custom hook
   const {
     table,
     columnFilters,
@@ -87,12 +122,8 @@ export default function CustomTable({
     pageSize,
   });
 
-  //
-  // 3) Selección de celdas y copiado
-  //    (Se mantiene aquí para orquestar, aunque la UI esté en TableView)
-  //
+  // 3) Selección de celdas y manejo de copiado (contenido en TableSection)
   const containerRef = useRef(null);
-
   const {
     selectedCells,
     setSelectedCells,
@@ -103,16 +134,19 @@ export default function CustomTable({
     handleKeyDownArrowSelection,
   } = useCellSelection(containerRef, getCellsInfo, filteredData, finalColumns, table);
 
+  // Copiadas por TableSection, pero mantenidas aquí para control global
   const [copiedCells, setCopiedCells] = useState([]);
 
   /**
    * getCellsInfo():
-   * Requerida por useCellSelection para mapear el DOM a coordenadas de celdas
+   * Mapeo de celdas <td> en el DOM -> información necesaria para selección
+   * (posición x,y, ancho, alto, rowId, colField).
    */
   function getCellsInfo() {
     if (!containerRef.current) return [];
     const cellEls = containerRef.current.querySelectorAll('[data-row][data-col]');
     const cells = [];
+
     cellEls.forEach((el) => {
       const rect = el.getBoundingClientRect();
       const rowIdString = el.getAttribute('data-row');
@@ -137,7 +171,7 @@ export default function CustomTable({
     return cells;
   }
 
-  // Listener de teclas (flechas) en el contenedor principal
+  // Listener de flechas en el contenedor (para mover selección con teclado)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!containerRef.current?.contains(document.activeElement)) return;
@@ -146,29 +180,25 @@ export default function CustomTable({
       }
     };
     containerRef.current?.addEventListener('keydown', handleKeyDown);
+
     return () => {
       containerRef.current?.removeEventListener('keydown', handleKeyDown);
     };
   }, [handleKeyDownArrowSelection]);
 
-  //
   // 4) Render principal
-  //
   return (
     <>
-      {/* Contenedor general con clase de tema (sin forzar altura aquí) */}
+      {/* Contenedor global que controla la apariencia (light/dark) */}
       <div
         className={`customTableContainer ${isDarkMode ? 'tabla-dark' : 'tabla-light'}`}
         style={{
           display: 'flex',
           flexDirection: 'column',
           position: 'relative',
-          // Notamos que aquí NO usamos "height: containerHeight"
-          // para no forzar la altura de todo el componente.
-          // Sólo lo pasaremos a TableSection.
         }}
       >
-        {/* Barra de filtros (opcional) con sticky top */}
+        {/** Barra de filtros (opcional, sticky) */}
         {showFiltersToolbar && (
           <div
             style={{
@@ -177,22 +207,27 @@ export default function CustomTable({
               left: 0,
               zIndex: 9999,
               backgroundColor: 'var(--color-bg-paper)',
-              borderBottom: `1px solid var(--color-divider)`,
+              borderBottom: '1px solid var(--color-divider)',
             }}
           >
             <FiltersToolbar
+              // Props específicos del padre y la propia barra
               {...(filtersToolbarProps || {})}
               globalFilterValue={tempGlobalFilter}
               onGlobalFilterChange={setTempGlobalFilter}
               onDownloadExcel={handleDownloadExcel}
               onRefresh={onRefresh}
+              // Manejo de tema
               isDarkMode={isDarkMode}
               onThemeToggle={toggleThemeMode}
             />
           </div>
         )}
 
-        {/* Contenedor para la tabla + paginación (TableView) */}
+        {/**
+         * Contenedor principal para TableSection, que es donde se
+         * renderiza la tabla y la paginación sticky
+         */}
         <div
           ref={containerRef}
           style={{
@@ -200,14 +235,12 @@ export default function CustomTable({
             display: 'flex',
             flexDirection: 'column',
             position: 'relative',
-            // No forzamos altura, dejamos que TableView la maneje
           }}
         >
           <TableSection
+            // Props de lógica interna
             table={table}
-            // Le pasamos la altura deseada
-            containerHeight={containerHeight}
-            // Filtros por columna
+            loading={loading}
             columnFilters={columnFilters}
             updateColumnFilter={(colId, filterValue) =>
               setColumnFilters((prev) => ({
@@ -215,12 +248,23 @@ export default function CustomTable({
                 [colId]: { ...prev[colId], ...filterValue },
               }))
             }
-            // Columnas
             columnsDef={finalColumns}
             originalColumnsDef={finalColumns}
-            // Loading
-            loading={loading}
-            // Selección de celdas
+            columnWidths={columnWidths}
+            setColumnWidth={handleSetColumnWidth}
+            onHideColumns={onHideColumns}
+            onHideRows={onHideRows}
+            sorting={sorting}
+            toggleSort={toggleSort}
+
+            // Props de presentación / personalización
+            containerHeight={containerHeight}
+            rowHeight={rowHeight}
+            loadingText={loadingText}
+            noResultsText={noResultsText}
+            autoCopyDelay={autoCopyDelay}
+
+            // Props relacionadas con la selección de celdas
             containerRef={containerRef}
             selectedCells={selectedCells}
             setSelectedCells={setSelectedCells}
@@ -230,19 +274,10 @@ export default function CustomTable({
             setAnchorCell={setAnchorCell}
             copiedCells={copiedCells}
             setCopiedCells={setCopiedCells}
-            // Resize de columnas
-            columnWidths={columnWidths}
-            setColumnWidth={handleSetColumnWidth}
-            // Ordenamiento
-            sorting={sorting}
-            toggleSort={toggleSort}
-            // Callbacks para ocultar cols/rows
-            onHideColumns={onHideColumns}
-            onHideRows={onHideRows}
           />
         </div>
 
-        {/* Overlay de carga */}
+        {/** Overlay de carga (por si deseas un spinner adicional en top-level) */}
         {loading && (
           <div
             style={{

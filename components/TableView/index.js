@@ -17,17 +17,16 @@
  *       - Barra de paginación con `position: sticky; bottom: 0;`
  *
  *   Principios SOLID aplicados:
- *     - SRP: Este componente se encarga únicamente de renderizar la tabla y su interacción.
- *     - DIP: Recibe definiciones y callbacks vía props, sin acoplamientos rígidos.
+ *     - SRP (Single Responsibility Principle): Únicamente renderiza la tabla y su interacción.
+ *     - DIP (Dependency Inversion Principle): Todas las dependencias (filtros, callbacks, etc.)
+ *       se reciben vía props, minimizando acoplamientos rígidos.
  *
  *   REQUISITOS DE LAYOUT:
  *     - Un ancestro con una altura establecida (ej: "100vh", "60vh", etc.)
  *       y `overflow: hidden`, de modo que el **scroll solo ocurra en el
  *       contenedor del componente** (containerRef) y no en toda la página.
- *
- * @version 5.3
+ * version 5.4
  ************************************************************************************/
-
 import React, { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import {
   Box,
@@ -51,26 +50,21 @@ import useTableViewContextMenu from './contextMenu/useTableViewContextMenu';
 import ColumnFilterConfiguration from '../ColumnConfiguration';
 import Pagination from './Pagination';
 
-// Constantes y utilidades
+// Constantes y utilidades para estilos/selección
 import {
   SELECTED_CELL_CLASS,
   COPIED_CELL_CLASS,
 } from '../tableViewVisualEffects';
-
-/** Alto de fila en pixeles */
-const ROW_HEIGHT = 20;
-/** Texto durante carga */
-const LOADING_TEXT = 'Cargando datos...';
-/** Texto cuando no hay resultados */
-const NO_RESULTS_TEXT = 'Sin resultados';
-/** Retardo en milisegundos para auto-copiado */
-const AUTO_COPY_DELAY = 1000;
 
 /**
  * getSafeDisplayValue
  * -------------------------------------------------------------------------
  * Convierte un valor a una representación segura en texto/JSX, evitando
  * mostrar "null", "undefined" o "[object Object]".
+ *
+ * @param {*} val - Valor que se desea representar en la celda.
+ * @returns {string|JSX.Element} - Devuelve la representación de texto
+ *                                o la misma si es un componente JSX.
  */
 function getSafeDisplayValue(val) {
   if (val == null) return '';
@@ -85,12 +79,13 @@ function getSafeDisplayValue(val) {
  * TableView
  * -----------------------------------------------------------------------------
  * Componente principal para renderizar la tabla y la paginación sticky.
- * Asegura que solo el contenedor interno scrollee, no toda la página.
+ * Asegura que solo el contenedor interno (containerRef) maneje el scroll.
  *
+ * @param {Object}   props
  * @param {object}   props.table                - Instancia de la tabla (react-table).
  * @param {boolean}  props.loading              - Indicador de carga.
  * @param {object}   props.columnFilters        - Filtros de columna.
- * @param {Function} props.updateColumnFilter   - Actualizador de filtros.
+ * @param {Function} props.updateColumnFilter   - Actualizador de filtros por columna.
  * @param {Array}    props.columnsDef           - Definición de columnas (visibles).
  * @param {Array}    [props.originalColumnsDef] - Definición original de columnas.
  * @param {object}   props.columnWidths         - Map colId -> width en px.
@@ -99,11 +94,25 @@ function getSafeDisplayValue(val) {
  * @param {Function} [props.onHideRows]         - Callback para ocultar filas.
  * @param {object}   props.sorting              - { columnId, direction }.
  * @param {Function} props.toggleSort           - Cambia el ordenamiento.
- *
  * @param {string|number} [props.containerHeight='400px']
- *     Altura del contenedor raíz. Puede ser "400px", "60vh", etc.
+ *   Altura del contenedor raíz (ej: "400px", "60vh", etc.).
+ *
+ * @param {number}   [props.rowHeight=15]
+ *   Altura de cada fila, en px. Por defecto 15.
+ *
+ * @param {string}   [props.loadingText='Cargando datos...']
+ *   Texto que se muestra en el overlay cuando loading es true.
+ *
+ * @param {string}   [props.noResultsText='Sin resultados']
+ *   Texto que se muestra si no hay filas que renderizar.
+ *
+ * @param {number}   [props.autoCopyDelay=1000]
+ *   Retardo en milisegundos para el auto-copiado al seleccionar celdas.
+ *
+ * @returns {JSX.Element}
  */
 export default function TableView({
+  // Props requeridas
   table,
   loading,
   columnFilters,
@@ -116,17 +125,17 @@ export default function TableView({
   onHideRows,
   sorting,
   toggleSort,
-
-  // Nuevo prop para controlar la altura del contenedor raíz
   containerHeight = '400px',
+
+  // Props opcionales nuevas para personalizar
+  rowHeight = 15,
+  loadingText = 'Cargando datos...',
+  noResultsText = 'Sin resultados',
+  autoCopyDelay = 1000,
 }) {
   /**
-   * NOTA IMPORTANTE SOBRE LAYOUT:
-   * Se asume que el ancestro no provoca scroll en toda la página
-   * (por ejemplo, usando `height: 100vh; overflow: hidden;`).
-   *
-   * Este TableView toma `containerHeight` para su <Box> raíz,
-   * y el scroll interno ocurre dentro de `containerRef`.
+   * Se asume que el contenedor padre no produce scroll a nivel de página (p.e. `height:100vh; overflow:hidden;`)
+   * y que TableView tendrá su altura controlada por `containerHeight`.
    */
   const containerRef = useRef(null);
 
@@ -139,6 +148,10 @@ export default function TableView({
   // --------------------------------------------------------------------------------
   // 2) Selección de celdas
   // --------------------------------------------------------------------------------
+  /**
+   * getCellsInfo:
+   * Mapeo DOM de celdas <td data-row="rIndex" data-col="cIndex" /> -> info con rect, rowId, colField
+   */
   function getCellsInfo() {
     if (!containerRef.current) return [];
     const cellEls = containerRef.current.querySelectorAll('[data-row][data-col]');
@@ -167,6 +180,7 @@ export default function TableView({
     return cells;
   }
 
+  // Lógica y estados para selección de celdas
   const {
     selectedCells,
     setSelectedCells,
@@ -177,7 +191,7 @@ export default function TableView({
     handleKeyDownArrowSelection,
   } = useCellSelection(containerRef, getCellsInfo, displayedData, columnsDef, table);
 
-  // Manejo de flechas de teclado
+  // Manejo de flechas de teclado (up, down, left, right)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!containerRef.current?.contains(document.activeElement)) return;
@@ -201,6 +215,11 @@ export default function TableView({
     columnsDef
   );
 
+  /**
+   * doCopyCells:
+   * Copia el contenido de las celdas seleccionadas (cellsToCopy) al portapapeles,
+   * formateado en TSV (tab-separated values).
+   */
   async function doCopyCells(cellsToCopy) {
     if (!cellsToCopy?.length) return;
     if (!document.hasFocus()) {
@@ -211,7 +230,7 @@ export default function TableView({
       const dataMap = new Map();
       rows.forEach((r) => dataMap.set(r.id, r.original));
 
-      // Construir el TSV
+      // Construir TSV a partir de las celdas
       const rowsMap = new Map();
       cellsToCopy.forEach((cell) => {
         const rowData = dataMap.get(cell.id);
@@ -230,10 +249,11 @@ export default function TableView({
       await navigator.clipboard.writeText(tsvContent);
       setCopiedCells([...cellsToCopy]);
     } catch (error) {
-      console.error('Error copiando:', error);
+      console.error('Error al copiar:', error);
     }
   }
 
+  // Timer para auto-copiado
   const autoCopyTimerRef = useRef(null);
 
   // --------------------------------------------------------------------------------
@@ -249,24 +269,24 @@ export default function TableView({
     handleBlur,
   } = useInlineCellEdit();
 
+  // Auto-copiado si hay celdas seleccionadas y no se está editando
   useEffect(() => {
     if (!selectedCells?.length) return;
-    // Si estamos editando, no se auto-copia
     if (editingCell) return;
 
     if (autoCopyTimerRef.current) clearTimeout(autoCopyTimerRef.current);
     autoCopyTimerRef.current = setTimeout(async () => {
       if (!document.hasFocus()) {
-        console.warn('[AutoCopy] Documento sin foco, no copiamos.');
+        console.warn('[AutoCopy] Documento sin foco, no se copiará.');
         return;
       }
       await doCopyCells(selectedCells);
-    }, AUTO_COPY_DELAY);
+    }, autoCopyDelay);
 
     return () => {
       if (autoCopyTimerRef.current) clearTimeout(autoCopyTimerRef.current);
     };
-  }, [selectedCells, editingCell]);
+  }, [selectedCells, editingCell, doCopyCells, autoCopyDelay]);
 
   // --------------------------------------------------------------------------------
   // 5) Resize de columnas
@@ -309,6 +329,7 @@ export default function TableView({
     setAnchorEl(event.currentTarget);
     setMenuColumnId(columnId);
   };
+
   const handleCloseMenu = () => {
     setAnchorEl(null);
     setMenuColumnId(null);
@@ -329,9 +350,14 @@ export default function TableView({
     startRowIndex: null,
   });
 
+  /**
+   * handleHeaderMouseDown:
+   * Inicia el proceso de arrastre de columnas si no se está haciendo un resize.
+   */
   const handleHeaderMouseDown = (e, colIndex, colId) => {
-    // Evitar resizing
+    // Evitar resizing si clic en la manija
     if (e.target.classList.contains('resize-handle')) return;
+    // Evitar arrastrar la columna de índice
     if (colId === '_selectIndex') return;
 
     dragStateRef.current.isDraggingCols = true;
@@ -351,6 +377,10 @@ export default function TableView({
     }
   };
 
+  /**
+   * handleRowIndexMouseDown:
+   * Selecciona la fila completa y habilita arrastrar filas si se mantiene presionado.
+   */
   const handleRowIndexMouseDown = (e, rowIndex, rowId) => {
     e.stopPropagation();
     e.preventDefault();
@@ -360,6 +390,7 @@ export default function TableView({
     setIsDraggingRows(true);
     setStartRowIndex(rowIndex);
   };
+
   const handleRowIndexTouchStart = (e, rowIndex, rowId) => {
     e.stopPropagation();
     e.preventDefault();
@@ -373,6 +404,11 @@ export default function TableView({
   };
 
   useEffect(() => {
+    /**
+     * handlePointerMove:
+     * Lógica para detectar en qué columna/fila estamos mientras se arrastra,
+     * y realizar la selección de rango correspondiente.
+     */
     const handlePointerMove = (clientX, clientY, e) => {
       const {
         isDraggingCols,
@@ -380,6 +416,7 @@ export default function TableView({
         startColIndex: stCol,
         startRowIndex: stRow,
       } = dragStateRef.current;
+
       if (!containerRef.current) return;
 
       if (isDraggingCols) {
@@ -475,7 +512,12 @@ export default function TableView({
     };
   }, [rows]);
 
-  // Clic normal en cabecera => seleccionar columna entera
+  /**
+   * handleHeaderClick:
+   * - Si se hace clic normal en la cabecera de una columna (no en la manija de resize),
+   *   selecciona toda la columna.
+   * - Si la columna es la de índice (`_selectIndex`), se seleccionan todas las celdas de la tabla.
+   */
   const handleHeaderClick = (e, colIndex, colId) => {
     if (e.target.classList.contains('resize-handle')) return;
     if (colId === '_selectIndex') {
@@ -486,7 +528,7 @@ export default function TableView({
   };
 
   // --------------------------------------------------------------------------------
-  // 9) Funciones de selección extra
+  // 9) Funciones de selección extra (columnas/filas completas, rango, todo)
   // --------------------------------------------------------------------------------
   function selectColumnRange(start, end) {
     const min = Math.min(start, end);
@@ -560,16 +602,20 @@ export default function TableView({
   }
 
   // --------------------------------------------------------------------------------
-  // 10) Resaltar fila actual
+  // 10) Resaltar fila actual (por clic en una celda)
   // --------------------------------------------------------------------------------
   const [highlightedRowIndex, setHighlightedRowIndex] = useState(null);
 
+  /**
+   * handleCellClick:
+   * Actualiza la fila resaltada (destacada visualmente).
+   */
   const handleCellClick = (rowIndex) => {
     setHighlightedRowIndex(rowIndex);
   };
 
   // --------------------------------------------------------------------------------
-  // 11) Ancho inicial de columnas
+  // 11) Determinar ancho inicial de columnas
   // --------------------------------------------------------------------------------
   function getColumnDefWidth(colId) {
     const col = originalColumnsDef.find((c) => c.accessorKey === colId);
@@ -589,7 +635,7 @@ export default function TableView({
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
-        height: containerHeight, // <--- Reemplazamos "34vh" por containerHeight
+        height: containerHeight,
         overflow: 'hidden',
       }}
     >
@@ -628,7 +674,7 @@ export default function TableView({
           >
             <CircularProgress sx={{ color: 'var(--color-primary)', marginBottom: '8px' }} />
             <Typography variant="body2" sx={{ mt: 1 }}>
-              {LOADING_TEXT}
+              {loadingText}
             </Typography>
           </Box>
         )}
@@ -650,7 +696,7 @@ export default function TableView({
             }}
           >
             <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem' }}>
-              {NO_RESULTS_TEXT}
+              {noResultsText}
             </Typography>
             <Typography variant="body2" sx={{ mt: 1 }}>
               Modifica los filtros o la búsqueda para ver más resultados.
@@ -768,7 +814,7 @@ export default function TableView({
                 <tr
                   key={rowId}
                   style={{
-                    height: ROW_HEIGHT,
+                    height: rowHeight,
                     backgroundColor: rowIsHighlighted
                       ? 'var(--color-table-row-highlight, #fff9e6)'
                       : 'transparent',
@@ -778,7 +824,7 @@ export default function TableView({
                     const colId = cell.column.id;
                     const isIndexCol = colId === '_selectIndex';
 
-                    // ¿Celda seleccionada o copiada?
+                    // Determinar si la celda está seleccionada o ha sido copiada
                     const isSelected = selectedCells.some(
                       (sc) => sc.id === rowId && sc.colField === colId
                     );
@@ -786,9 +832,11 @@ export default function TableView({
                       (cc) => cc.id === rowId && cc.colField === colId
                     );
 
-                    // ¿Edición en línea?
+                    // ¿Edición en línea activa?
                     const inEditingMode = isEditingCell(rowId, colId);
                     const rawValue = cell.getValue();
+                    // Render custom si la columna define su propio "cell",
+                    // de lo contrario, usamos el valor crudo.
                     const customRender = cell.column.columnDef.cell
                       ? cell.column.columnDef.cell({
                           getValue: () => rawValue,

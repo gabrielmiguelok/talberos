@@ -1,18 +1,10 @@
-/************************************************************************************
- * LOCATION: /components/components/ColumnConfiguration.jsx
- * LICENSE: MIT
+/**
+ * Archivo: /components/ColumnConfiguration.jsx
+ * Licencia: MIT
  *
- * DESCRIPCIÓN GENERAL:
- *   Componente que muestra un panel (popover) para configurar el filtro y el orden
- *   de una columna específica. Soporta operadores de texto y numéricos, y un
- *   sortDirection (asc/desc/none).
- *
- *   - operatorsText (para columnas texto).
- *   - operatorsNumeric (para columnas numéricas).
- *   - sortOptions correspondientes.
- *
- * @version 3.0
- ************************************************************************************/
+ * DESCRIPCIÓN:
+ *  - Popover con controles para filtrar una columna (texto, numérico) y ordenarla.
+ */
 
 import React from 'react';
 import { Box, Select, MenuItem } from '@mui/material';
@@ -51,18 +43,6 @@ const inputStyles = {
   color: 'var(--color-text)',
 };
 
-/**
- * Componente que renderiza la configuración de un filtro (operator, value, etc.)
- * y la selección de orden (sortDirection) para una columna en particular.
- *
- * @param {Object} props
- * @param {string} props.menuColumnId - Identificador de la columna a configurar.
- * @param {Object} props.columnFilters - Objeto con los filtros actuales de todas las columnas.
- * @param {Function} props.updateColumnFilter - Función para actualizar el filtro de una columna (colId, newValues).
- * @param {Array} props.originalColumnsDef - Definición original de columnas, para detectar si es numérica.
- *
- * @returns {JSX.Element|null} - Devuelve el panel de configuración o null si `menuColumnId` no existe.
- */
 export default function ColumnFilterConfiguration({
   menuColumnId,
   columnFilters,
@@ -72,45 +52,10 @@ export default function ColumnFilterConfiguration({
   if (!menuColumnId) return null;
 
   const currentFilter = columnFilters[menuColumnId] || {};
-  const currentColDef = originalColumnsDef.find(
-    (c) => c.accessorKey === menuColumnId
-  );
+  const currentColDef = originalColumnsDef.find((c) => c.accessorKey === menuColumnId);
   const isNumeric = currentColDef?.isNumeric || false;
-
-  // Operador actual para la columna (range, exact, etc.) o default
-  const currentOperator =
-    currentFilter.operator || (isNumeric ? 'range' : 'contains');
-
-  // sortDirection actual (asc, desc, none)
+  const currentOperator = currentFilter.operator || (isNumeric ? 'range' : 'contains');
   const sortDirection = currentFilter.sortDirection || 'none';
-
-  // Manejadores de eventos
-  const handleOperatorChange = (e) => {
-    updateColumnFilter(menuColumnId, { operator: e.target.value });
-  };
-  const handleSearchChange = (e) => {
-    updateColumnFilter(menuColumnId, { value: e.target.value });
-  };
-  const normalizeNumber = (val) => {
-    if (val === '') return undefined;
-    return Number(val.replace(',', '.'));
-  };
-  const handleMinChange = (e) => {
-    const val = normalizeNumber(e.target.value);
-    updateColumnFilter(menuColumnId, { min: val });
-  };
-  const handleMaxChange = (e) => {
-    const val = normalizeNumber(e.target.value);
-    updateColumnFilter(menuColumnId, { max: val });
-  };
-  const handleExactNumberChange = (e) => {
-    const val = normalizeNumber(e.target.value);
-    updateColumnFilter(menuColumnId, { exact: val });
-  };
-  const handleSortChange = (e) => {
-    updateColumnFilter(menuColumnId, { sortDirection: e.target.value });
-  };
-
   const sortOptions = isNumeric ? sortNumOptions : sortTextOptions;
 
   const menuProps = {
@@ -123,7 +68,37 @@ export default function ColumnFilterConfiguration({
     },
   };
 
-  // Render
+  // Handlers
+  const handleOperatorChange = (e) =>
+    updateColumnFilter(menuColumnId, { operator: e.target.value });
+
+  const handleSearchChange = (e) =>
+    updateColumnFilter(menuColumnId, { value: e.target.value });
+
+  const normalizeNumber = (val) => {
+    if (val === '') return undefined;
+    return Number(val.replace(',', '.'));
+  };
+
+  const handleMinChange = (e) => {
+    const val = normalizeNumber(e.target.value);
+    updateColumnFilter(menuColumnId, { min: val });
+  };
+
+  const handleMaxChange = (e) => {
+    const val = normalizeNumber(e.target.value);
+    updateColumnFilter(menuColumnId, { max: val });
+  };
+
+  const handleExactNumberChange = (e) => {
+    const val = normalizeNumber(e.target.value);
+    updateColumnFilter(menuColumnId, { exact: val });
+  };
+
+  const handleSortChange = (e) => {
+    updateColumnFilter(menuColumnId, { sortDirection: e.target.value });
+  };
+
   return (
     <Box
       sx={{
@@ -138,7 +113,7 @@ export default function ColumnFilterConfiguration({
         borderRadius: '4px',
       }}
     >
-      {/* Opciones de orden (sort asc/desc) */}
+      {/* Orden asc/desc */}
       <Select
         size="small"
         value={sortDirection}
@@ -157,14 +132,18 @@ export default function ColumnFilterConfiguration({
         ))}
       </Select>
 
-      {/* Si la columna es numérica, mostramos operadores numeric; si no, operadores text */}
+      {/* Filtro numérico o de texto */}
       {isNumeric ? (
         <>
           <Select
             size="small"
             value={currentOperator}
             onChange={handleOperatorChange}
-            sx={{ fontSize: '0.8rem', backgroundColor: 'var(--color-bg-paper)', color: 'var(--color-text)' }}
+            sx={{
+              fontSize: '0.8rem',
+              backgroundColor: 'var(--color-bg-paper)',
+              color: 'var(--color-text)',
+            }}
             MenuProps={menuProps}
           >
             {operatorsNumeric.map((op) => (
@@ -213,7 +192,11 @@ export default function ColumnFilterConfiguration({
             size="small"
             value={currentOperator}
             onChange={handleOperatorChange}
-            sx={{ fontSize: '0.8rem', backgroundColor: 'var(--color-bg-paper)', color: 'var(--color-text)' }}
+            sx={{
+              fontSize: '0.8rem',
+              backgroundColor: 'var(--color-bg-paper)',
+              color: 'var(--color-text)',
+            }}
             MenuProps={menuProps}
           >
             {operatorsText.map((op) => (

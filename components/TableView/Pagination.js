@@ -58,7 +58,7 @@ export default function Pagination({ table }) {
       }}
     >
       <Typography variant="caption" sx={{ fontWeight: 500, mr: 0.5, color: 'inherit' }}>
-        Rows per page:
+        Filas por página:
       </Typography>
 
       <Select
