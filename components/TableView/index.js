@@ -3,30 +3,39 @@
  * LICENSE: MIT
  *
  * DESCRIPCIÓN GENERAL:
- *   Este sub-componente se encarga de la VISTA + interacción de la tabla y la barra
- *   de paginación (ambas sticky), incluyendo toda la lógica necesaria para:
+ * ----------------------------------------------------------------------------------
+ * Este sub-componente se encarga de la VISTA + interacción de la tabla y la barra
+ * de paginación (ambas sticky), incluyendo toda la lógica necesaria para:
  *
- *    1. Selección de celdas (drag, shift-click, flechas) y copiado automático.
- *    2. Menús contextuales (copiar, ocultar columnas/filas).
- *    3. Indicadores de carga (spinner) y de “sin resultados” (overlay).
- *    4. Integración con un hook de edición en línea (useInlineCellEdit).
- *    5. Filtrado por columna (Popover).
- *    6. Redimensionado de columnas (useColumnResize).
- *    7. Scroll y vista “sticky”:
+ *   1. Selección de celdas (drag, shift-click, flechas) y copiado automático.
+ *   2. Menús contextuales (copiar, ocultar columnas/filas).
+ *   3. Indicadores de carga (spinner) y de “sin resultados” (overlay).
+ *   4. Integración con un hook de edición en línea (useInlineCellEdit).
+ *   5. Filtrado por columna (Popover).
+ *   6. Redimensionado de columnas (useColumnResize).
+ *   7. Scroll y vista “sticky”:
  *       - Cabecera (`<thead>`) con `position: sticky; top: 0;`
  *       - Barra de paginación con `position: sticky; bottom: 0;`
  *
- *   Principios SOLID aplicados:
- *     - SRP (Single Responsibility Principle): Únicamente renderiza la tabla y su interacción.
- *     - DIP (Dependency Inversion Principle): Todas las dependencias (filtros, callbacks, etc.)
- *       se reciben vía props, minimizando acoplamientos rígidos.
+ * Principios SOLID aplicados:
+ * ----------------------------------------------------------------------------------
+ *   - SRP (Single Responsibility Principle):
+ *       Únicamente renderiza la tabla y maneja su interacción (selección, menú contextual, etc.)
+ *   - DIP (Dependency Inversion Principle):
+ *       Todas las dependencias (filtros, callbacks, etc.) se reciben vía props, minimizando
+ *       acoplamientos rígidos.
  *
- *   REQUISITOS DE LAYOUT:
- *     - Un ancestro con una altura establecida (ej: "100vh", "60vh", etc.)
- *       y `overflow: hidden`, de modo que el **scroll solo ocurra en el
- *       contenedor del componente** (containerRef) y no en toda la página.
- * version 5.4
+ * REQUISITOS DE LAYOUT:
+ * ----------------------------------------------------------------------------------
+ *   - Un contenedor padre con una altura establecida (ej: "100vh" o "60vh")
+ *     y `overflow: hidden`, para que el **scroll ocurra sólo en este componente**.
+ *
+ * Versión:
+ * ----------------------------------------------------------------------------------
+ *   - 5.4
+ *
  ************************************************************************************/
+
 import React, { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import {
   Box,
@@ -56,61 +65,49 @@ import {
   COPIED_CELL_CLASS,
 } from '../tableViewVisualEffects';
 
-/**
+/************************************************************************************
  * getSafeDisplayValue
- * -------------------------------------------------------------------------
- * Convierte un valor a una representación segura en texto/JSX, evitando
- * mostrar "null", "undefined" o "[object Object]".
+ * ----------------------------------------------------------------------------------
+ * Convierte cualquier valor en una representación segura y legible en texto/JSX:
+ *   - Null/Undefined => '' (cadena vacía).
+ *   - Objeto React (JSX) => retornarlo tal cual.
+ *   - Objeto normal => JSON.stringify(val).
+ *   - Cualquier otro tipo => String(valor).
  *
- * @param {*} val - Valor que se desea representar en la celda.
- * @returns {string|JSX.Element} - Devuelve la representación de texto
- *                                o la misma si es un componente JSX.
- */
+ * @param {*} val - El valor a representar en la celda.
+ * @returns {string|JSX.Element}
+ ************************************************************************************/
 function getSafeDisplayValue(val) {
   if (val == null) return '';
   if (typeof val === 'object') {
-    // Caso: elemento React (JSX) o un objeto normal
+    // Caso: elemento React (JSX) o un objeto JS
     return val.$$typeof ? val : JSON.stringify(val);
   }
   return String(val);
 }
 
-/**
+/************************************************************************************
  * TableView
- * -----------------------------------------------------------------------------
+ * ----------------------------------------------------------------------------------
  * Componente principal para renderizar la tabla y la paginación sticky.
- * Asegura que solo el contenedor interno (containerRef) maneje el scroll.
  *
- * @param {Object}   props
- * @param {object}   props.table                - Instancia de la tabla (react-table).
- * @param {boolean}  props.loading              - Indicador de carga.
- * @param {object}   props.columnFilters        - Filtros de columna.
- * @param {Function} props.updateColumnFilter   - Actualizador de filtros por columna.
- * @param {Array}    props.columnsDef           - Definición de columnas (visibles).
- * @param {Array}    [props.originalColumnsDef] - Definición original de columnas.
- * @param {object}   props.columnWidths         - Map colId -> width en px.
- * @param {Function} props.setColumnWidth       - Setter de ancho de columna.
- * @param {Function} [props.onHideColumns]      - Callback para ocultar columnas.
- * @param {Function} [props.onHideRows]         - Callback para ocultar filas.
- * @param {object}   props.sorting              - { columnId, direction }.
- * @param {Function} props.toggleSort           - Cambia el ordenamiento.
- * @param {string|number} [props.containerHeight='400px']
- *   Altura del contenedor raíz (ej: "400px", "60vh", etc.).
+ * PROPS:
+ *   - table: Instancia de la tabla (react-table).
+ *   - loading: Booleano, muestra spinner si true.
+ *   - columnFilters, updateColumnFilter: Filtros de columna y su setter.
+ *   - columnsDef: Definición de columnas visibles.
+ *   - originalColumnsDef: Definición original de columnas (opcional).
+ *   - columnWidths, setColumnWidth: Mapa colId -> ancho px, y su setter.
+ *   - onHideColumns, onHideRows: Callbacks para ocultar columnas/filas (opcionales).
+ *   - sorting, toggleSort: Estado de ordenamiento y callback para cambiar sort.
+ *   - containerHeight: Altura del contenedor raíz (string|number).
+ *   - rowHeight: Altura de cada fila en px.
+ *   - loadingText: Texto a mostrar si loading=true.
+ *   - noResultsText: Texto a mostrar si no hay filas.
+ *   - autoCopyDelay: Retardo (ms) para auto-copiado de celdas seleccionadas.
  *
- * @param {number}   [props.rowHeight=15]
- *   Altura de cada fila, en px. Por defecto 15.
- *
- * @param {string}   [props.loadingText='Cargando datos...']
- *   Texto que se muestra en el overlay cuando loading es true.
- *
- * @param {string}   [props.noResultsText='Sin resultados']
- *   Texto que se muestra si no hay filas que renderizar.
- *
- * @param {number}   [props.autoCopyDelay=1000]
- *   Retardo en milisegundos para el auto-copiado al seleccionar celdas.
- *
- * @returns {JSX.Element}
- */
+ * RETORNA: JSX.Element
+ ************************************************************************************/
 export default function TableView({
   // Props requeridas
   table,
@@ -127,48 +124,59 @@ export default function TableView({
   toggleSort,
   containerHeight = '400px',
 
-  // Props opcionales nuevas para personalizar
+  // Props opcionales de personalización
   rowHeight = 15,
   loadingText = 'Cargando datos...',
   noResultsText = 'Sin resultados',
   autoCopyDelay = 1000,
 }) {
   /**
-   * Se asume que el contenedor padre no produce scroll a nivel de página (p.e. `height:100vh; overflow:hidden;`)
-   * y que TableView tendrá su altura controlada por `containerHeight`.
+   * [A] REFERENCIA AL CONTENEDOR SCROLLEABLE
+   * --------------------------------------------------------
+   * Se asume que el padre (wrapper) no produce scroll en toda la página,
+   * sino que este contenedor maneja su propio scroll interno.
    */
   const containerRef = useRef(null);
 
-  // --------------------------------------------------------------------------------
-  // 1) Datos y filas
-  // --------------------------------------------------------------------------------
+  /************************************************************************************
+   * [1] DATOS Y FILAS
+   ************************************************************************************/
   const rows = table.getRowModel().rows;
   const displayedData = rows.map((r) => r.original);
 
-  // --------------------------------------------------------------------------------
-  // 2) Selección de celdas
-  // --------------------------------------------------------------------------------
+  /************************************************************************************
+   * [2] SELECCIÓN DE CELDAS (HOOK useCellSelection)
+   ************************************************************************************/
+
   /**
    * getCellsInfo:
-   * Mapeo DOM de celdas <td data-row="rIndex" data-col="cIndex" /> -> info con rect, rowId, colField
+   * -----------------------------------------------------------------------------
+   * Lee el DOM para cada <td data-row="rowId" data-col="cIndex" />,
+   * recuperando posición (x, y, width, height) + rowId + colField.
+   *
+   * NOTA:
+   *  - Aseguramos que data-row contenga el ID real de la fila (row.id), no simplemente
+   *    un índice. De esta forma, la selección funciona coherentemente con `useCellSelection`.
    */
   function getCellsInfo() {
     if (!containerRef.current) return [];
     const cellEls = containerRef.current.querySelectorAll('[data-row][data-col]');
     const cells = [];
+
     cellEls.forEach((el) => {
       const rect = el.getBoundingClientRect();
+
+      // rowIdString es el row.id (string) que inyectamos en data-row
       const rowIdString = el.getAttribute('data-row');
       const cIndex = parseInt(el.getAttribute('data-col'), 10);
 
-      if (rowIdString == null || isNaN(cIndex) || rect.width <= 0 || rect.height <= 0) {
+      if (!rowIdString || isNaN(cIndex) || rect.width <= 0 || rect.height <= 0) {
         return;
       }
-      const rowId = rowIdString;
       const colObj = table.getVisibleFlatColumns()[cIndex];
       if (colObj) {
         cells.push({
-          id: rowId,
+          id: rowIdString, // Este es el ID real de la fila
           colField: colObj.id,
           x: rect.x,
           y: rect.y,
@@ -180,7 +188,7 @@ export default function TableView({
     return cells;
   }
 
-  // Lógica y estados para selección de celdas
+  // Instancia del hook para selección de celdas
   const {
     selectedCells,
     setSelectedCells,
@@ -191,12 +199,12 @@ export default function TableView({
     handleKeyDownArrowSelection,
   } = useCellSelection(containerRef, getCellsInfo, displayedData, columnsDef, table);
 
-  // Manejo de flechas de teclado (up, down, left, right)
+  // Manejo de flechas de teclado
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (evt) => {
       if (!containerRef.current?.contains(document.activeElement)) return;
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        handleKeyDownArrowSelection(e);
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(evt.key)) {
+        handleKeyDownArrowSelection(evt);
       }
     };
     containerRef.current?.addEventListener('keydown', handleKeyDown);
@@ -205,9 +213,9 @@ export default function TableView({
     };
   }, [handleKeyDownArrowSelection]);
 
-  // --------------------------------------------------------------------------------
-  // 3) Copiado & auto-copiado
-  // --------------------------------------------------------------------------------
+  /************************************************************************************
+   * [3] HOOK DE COPIADO (useClipboardCopy)
+   ************************************************************************************/
   const { copiedCells, setCopiedCells } = useClipboardCopy(
     containerRef,
     selectedCells,
@@ -217,8 +225,7 @@ export default function TableView({
 
   /**
    * doCopyCells:
-   * Copia el contenido de las celdas seleccionadas (cellsToCopy) al portapapeles,
-   * formateado en TSV (tab-separated values).
+   * Copia las celdas seleccionadas al portapapeles en formato TSV (Tab-Separated Values).
    */
   async function doCopyCells(cellsToCopy) {
     if (!cellsToCopy?.length) return;
@@ -227,17 +234,18 @@ export default function TableView({
       return;
     }
     try {
+      // Mapeo row.id => row.original
       const dataMap = new Map();
       rows.forEach((r) => dataMap.set(r.id, r.original));
 
-      // Construir TSV a partir de las celdas
+      // Armar TSV
       const rowsMap = new Map();
       cellsToCopy.forEach((cell) => {
         const rowData = dataMap.get(cell.id);
         if (!rowData) return;
-        const rowArray = rowsMap.get(cell.id) || [];
-        rowArray.push(rowData[cell.colField]);
-        rowsMap.set(cell.id, rowArray);
+        const arr = rowsMap.get(cell.id) || [];
+        arr.push(rowData[cell.colField]);
+        rowsMap.set(cell.id, arr);
       });
 
       const tsvLines = [];
@@ -248,17 +256,16 @@ export default function TableView({
 
       await navigator.clipboard.writeText(tsvContent);
       setCopiedCells([...cellsToCopy]);
-    } catch (error) {
-      console.error('Error al copiar:', error);
+    } catch (err) {
+      console.error('Error al copiar:', err);
     }
   }
 
-  // Timer para auto-copiado
   const autoCopyTimerRef = useRef(null);
 
-  // --------------------------------------------------------------------------------
-  // 4) Edición en línea (doble click)
-  // --------------------------------------------------------------------------------
+  /************************************************************************************
+   * [4] EDICIÓN EN LÍNEA (HOOK useInlineCellEdit)
+   ************************************************************************************/
   const {
     editingCell,
     editingValue,
@@ -269,37 +276,18 @@ export default function TableView({
     handleBlur,
   } = useInlineCellEdit();
 
-  // Auto-copiado si hay celdas seleccionadas y no se está editando
-  useEffect(() => {
-    if (!selectedCells?.length) return;
-    if (editingCell) return;
-
-    if (autoCopyTimerRef.current) clearTimeout(autoCopyTimerRef.current);
-    autoCopyTimerRef.current = setTimeout(async () => {
-      if (!document.hasFocus()) {
-        console.warn('[AutoCopy] Documento sin foco, no se copiará.');
-        return;
-      }
-      await doCopyCells(selectedCells);
-    }, autoCopyDelay);
-
-    return () => {
-      if (autoCopyTimerRef.current) clearTimeout(autoCopyTimerRef.current);
-    };
-  }, [selectedCells, editingCell, doCopyCells, autoCopyDelay]);
-
-  // --------------------------------------------------------------------------------
-  // 5) Resize de columnas
-  // --------------------------------------------------------------------------------
+  /************************************************************************************
+   * [5] RESIZE DE COLUMNAS (useColumnResize)
+   ************************************************************************************/
   const { handleMouseDownResize } = useColumnResize({
     columnWidths,
     setColumnWidth,
     originalColumnsDef,
   });
 
-  // --------------------------------------------------------------------------------
-  // 6) Menú contextual (copiar, ocultar col/filas)
-  // --------------------------------------------------------------------------------
+  /************************************************************************************
+   * [6] MENÚ CONTEXTUAL (copiar/ocultar col/filas)
+   ************************************************************************************/
   const {
     contextMenu,
     clickedHeaderIndex,
@@ -318,26 +306,25 @@ export default function TableView({
     rows,
   });
 
-  // --------------------------------------------------------------------------------
-  // 7) Popover de filtros por columna
-  // --------------------------------------------------------------------------------
+  /************************************************************************************
+   * [7] POPOVER DE FILTROS POR COLUMNA
+   ************************************************************************************/
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuColumnId, setMenuColumnId] = useState(null);
 
-  const handleOpenMenu = (event, columnId) => {
-    event.stopPropagation();
-    setAnchorEl(event.currentTarget);
+  const handleOpenMenu = (evt, columnId) => {
+    evt.stopPropagation();
+    setAnchorEl(evt.currentTarget);
     setMenuColumnId(columnId);
   };
-
   const handleCloseMenu = () => {
     setAnchorEl(null);
     setMenuColumnId(null);
   };
 
-  // --------------------------------------------------------------------------------
-  // 8) Arrastre de columnas/filas completas
-  // --------------------------------------------------------------------------------
+  /************************************************************************************
+   * [8] ARRASTRE DE COLUMNAS Y FILAS COMPLETAS
+   ************************************************************************************/
   const [isDraggingColumns, setIsDraggingColumns] = useState(false);
   const [startColIndex, setStartColIndex] = useState(null);
   const [isDraggingRows, setIsDraggingRows] = useState(false);
@@ -350,26 +337,19 @@ export default function TableView({
     startRowIndex: null,
   });
 
-  /**
-   * handleHeaderMouseDown:
-   * Inicia el proceso de arrastre de columnas si no se está haciendo un resize.
-   */
-  const handleHeaderMouseDown = (e, colIndex, colId) => {
-    // Evitar resizing si clic en la manija
-    if (e.target.classList.contains('resize-handle')) return;
-    // Evitar arrastrar la columna de índice
-    if (colId === '_selectIndex') return;
-
+  // Disparadores para arrastrar columnas
+  const handleHeaderMouseDown = (evt, colIndex, colId) => {
+    if (evt.target.classList.contains('resize-handle')) return; // Evitar colisión con Resize
+    if (colId === '_selectIndex') return; // No arrastrar la col índice
     dragStateRef.current.isDraggingCols = true;
     dragStateRef.current.startColIndex = colIndex;
     setIsDraggingColumns(true);
     setStartColIndex(colIndex);
   };
-
-  const handleHeaderTouchStart = (e, colIndex, colId) => {
+  const handleHeaderTouchStart = (evt, colIndex, colId) => {
     if (colId === '_selectIndex') return;
-    if (e.target.classList.contains('resize-handle')) return;
-    if (e.touches.length === 1) {
+    if (evt.target.classList.contains('resize-handle')) return;
+    if (evt.touches.length === 1) {
       dragStateRef.current.isDraggingCols = true;
       dragStateRef.current.startColIndex = colIndex;
       setIsDraggingColumns(true);
@@ -377,24 +357,20 @@ export default function TableView({
     }
   };
 
-  /**
-   * handleRowIndexMouseDown:
-   * Selecciona la fila completa y habilita arrastrar filas si se mantiene presionado.
-   */
-  const handleRowIndexMouseDown = (e, rowIndex, rowId) => {
-    e.stopPropagation();
-    e.preventDefault();
+  // Disparadores para arrastrar filas (clic en la col índice)
+  const handleRowIndexMouseDown = (evt, rowIndex, rowId) => {
+    evt.stopPropagation();
+    evt.preventDefault();
     selectEntireRow(rowIndex, rowId);
     dragStateRef.current.isDraggingRows = true;
     dragStateRef.current.startRowIndex = rowIndex;
     setIsDraggingRows(true);
     setStartRowIndex(rowIndex);
   };
-
-  const handleRowIndexTouchStart = (e, rowIndex, rowId) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (e.touches.length === 1) {
+  const handleRowIndexTouchStart = (evt, rowIndex, rowId) => {
+    evt.stopPropagation();
+    evt.preventDefault();
+    if (evt.touches.length === 1) {
       selectEntireRow(rowIndex, rowId);
       dragStateRef.current.isDraggingRows = true;
       dragStateRef.current.startRowIndex = rowIndex;
@@ -406,8 +382,7 @@ export default function TableView({
   useEffect(() => {
     /**
      * handlePointerMove:
-     * Lógica para detectar en qué columna/fila estamos mientras se arrastra,
-     * y realizar la selección de rango correspondiente.
+     * Selecciona dinámicamente columnas/filas mientras se arrastra el puntero.
      */
     const handlePointerMove = (clientX, clientY, e) => {
       const {
@@ -416,7 +391,6 @@ export default function TableView({
         startColIndex: stCol,
         startRowIndex: stRow,
       } = dragStateRef.current;
-
       if (!containerRef.current) return;
 
       if (isDraggingCols) {
@@ -439,9 +413,7 @@ export default function TableView({
         }
       } else if (isDraggingRows) {
         e.preventDefault();
-        const rowIndexCells = containerRef.current.querySelectorAll(
-          'tbody tr td[data-col="0"]'
-        );
+        const rowIndexCells = containerRef.current.querySelectorAll('tbody tr td[data-col="0"]');
         let currentRow = null;
         rowIndexCells.forEach((el, i) => {
           const rect = el.getBoundingClientRect();
@@ -460,13 +432,12 @@ export default function TableView({
       }
     };
 
-    const handleMouseMove = (e) => {
+    const handleMouseMove = (evt) => {
       if (!dragStateRef.current.isDraggingCols && !dragStateRef.current.isDraggingRows) {
         return;
       }
-      handlePointerMove(e.clientX, e.clientY, e);
+      handlePointerMove(evt.clientX, evt.clientY, evt);
     };
-
     const handleMouseUp = () => {
       dragStateRef.current.isDraggingCols = false;
       dragStateRef.current.isDraggingRows = false;
@@ -478,16 +449,15 @@ export default function TableView({
       setStartRowIndex(null);
     };
 
-    const handleTouchMove = (e) => {
+    const handleTouchMove = (evt) => {
       if (!dragStateRef.current.isDraggingCols && !dragStateRef.current.isDraggingRows) {
         return;
       }
-      if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        handlePointerMove(touch.clientX, touch.clientY, e);
+      if (evt.touches.length === 1) {
+        const touch = evt.touches[0];
+        handlePointerMove(touch.clientX, touch.clientY, evt);
       }
     };
-
     const handleTouchEnd = () => {
       dragStateRef.current.isDraggingCols = false;
       dragStateRef.current.isDraggingRows = false;
@@ -514,12 +484,13 @@ export default function TableView({
 
   /**
    * handleHeaderClick:
+   * -----------------------------------------------------------------------------
    * - Si se hace clic normal en la cabecera de una columna (no en la manija de resize),
    *   selecciona toda la columna.
-   * - Si la columna es la de índice (`_selectIndex`), se seleccionan todas las celdas de la tabla.
+   * - Si la columna es la de índice (_selectIndex), selecciona toda la tabla.
    */
-  const handleHeaderClick = (e, colIndex, colId) => {
-    if (e.target.classList.contains('resize-handle')) return;
+  const handleHeaderClick = (evt, colIndex, colId) => {
+    if (evt.target.classList.contains('resize-handle')) return;
     if (colId === '_selectIndex') {
       selectAllCells();
       return;
@@ -527,22 +498,22 @@ export default function TableView({
     selectEntireColumn(colIndex, colId);
   };
 
-  // --------------------------------------------------------------------------------
-  // 9) Funciones de selección extra (columnas/filas completas, rango, todo)
-  // --------------------------------------------------------------------------------
+  /************************************************************************************
+   * [9] FUNCIONES PARA SELECCIONAR COLUMNAS / FILAS COMPLETAS O RANGOS
+   ************************************************************************************/
   function selectColumnRange(start, end) {
     const min = Math.min(start, end);
     const max = Math.max(start, end);
     const visibleCols = table.getVisibleFlatColumns();
-    const newSelected = [];
-    rows.forEach((row) => {
-      const rowId = row.id;
+    const newSelection = [];
+    rows.forEach((r) => {
       for (let c = min; c <= max; c++) {
-        if (visibleCols[c]?.id === '_selectIndex') continue;
-        newSelected.push({ id: rowId, colField: visibleCols[c].id });
+        const col = visibleCols[c];
+        if (!col || col.id === '_selectIndex') continue;
+        newSelection.push({ id: r.id, colField: col.id });
       }
     });
-    setSelectedCells(newSelected);
+    setSelectedCells(newSelection);
     setAnchorCell({ rowIndex: 0, colIndex: min });
     setFocusCell({ rowIndex: 0, colIndex: min });
   }
@@ -551,20 +522,27 @@ export default function TableView({
     const min = Math.min(start, end);
     const max = Math.max(start, end);
     const visibleCols = table.getVisibleFlatColumns();
-    const newSelected = [];
+    const newSelection = [];
     for (let r = min; r <= max; r++) {
-      const row = rows[r];
-      if (!row) continue;
-      for (let c = 0; c < visibleCols.length; c++) {
-        if (visibleCols[c].id === '_selectIndex') continue;
-        newSelected.push({ id: row.id, colField: visibleCols[c].id });
-      }
+      const rowObj = rows[r];
+      if (!rowObj) continue;
+      visibleCols.forEach((col) => {
+        if (col.id !== '_selectIndex') {
+          newSelection.push({ id: rowObj.id, colField: col.id });
+        }
+      });
     }
-    setSelectedCells(newSelected);
+    setSelectedCells(newSelection);
     setAnchorCell({ rowIndex: min, colIndex: 1 });
     setFocusCell({ rowIndex: min, colIndex: 1 });
   }
 
+  /**
+   * selectEntireRow(rIndex, rowId):
+   * -----------------------------------------------------------------------------
+   * Selecciona todas las celdas de la fila (excepto la col índice).
+   * rowIndex nos sirve para anchorCell/focusCell, rowId para la selección real.
+   */
   function selectEntireRow(rIndex, rowId) {
     const visibleCols = table.getVisibleFlatColumns();
     const newCells = visibleCols
@@ -577,22 +555,22 @@ export default function TableView({
   }
 
   function selectEntireColumn(colIndex, colId) {
-    const newSelected = [];
-    rows.forEach((row) => {
-      newSelected.push({ id: row.id, colField: colId });
+    const newSelection = [];
+    rows.forEach((r) => {
+      newSelection.push({ id: r.id, colField: colId });
     });
-    setSelectedCells(newSelected);
-    setAnchorCell({ rowIndex: 0, colIndex: colIndex });
-    setFocusCell({ rowIndex: 0, colIndex: colIndex });
+    setSelectedCells(newSelection);
+    setAnchorCell({ rowIndex: 0, colIndex });
+    setFocusCell({ rowIndex: 0, colIndex });
   }
 
   function selectAllCells() {
     const allCells = [];
     const visibleCols = table.getVisibleFlatColumns();
-    rows.forEach((row) => {
+    rows.forEach((r) => {
       visibleCols.forEach((col) => {
         if (col.id !== '_selectIndex') {
-          allCells.push({ id: row.id, colField: col.id });
+          allCells.push({ id: r.id, colField: col.id });
         }
       });
     });
@@ -601,36 +579,28 @@ export default function TableView({
     setFocusCell({ rowIndex: 0, colIndex: 1 });
   }
 
-  // --------------------------------------------------------------------------------
-  // 10) Resaltar fila actual (por clic en una celda)
-  // --------------------------------------------------------------------------------
+  /************************************************************************************
+   * [10] RESALTAR FILA ACTUAL (POR CLIC EN CUALQUIER CELDA)
+   ************************************************************************************/
   const [highlightedRowIndex, setHighlightedRowIndex] = useState(null);
 
-  /**
-   * handleCellClick:
-   * Actualiza la fila resaltada (destacada visualmente).
-   */
-  const handleCellClick = (rowIndex) => {
-    setHighlightedRowIndex(rowIndex);
+  const handleCellClick = (rIndex) => {
+    setHighlightedRowIndex(rIndex);
   };
 
-  // --------------------------------------------------------------------------------
-  // 11) Determinar ancho inicial de columnas
-  // --------------------------------------------------------------------------------
+  /************************************************************************************
+   * [11] DETERMINAR ANCHO INICIAL DE COLUMNAS
+   ************************************************************************************/
   function getColumnDefWidth(colId) {
     const col = originalColumnsDef.find((c) => c.accessorKey === colId);
     return col?.width ?? 80;
   }
 
-  // --------------------------------------------------------------------------------
-  // Render principal
-  // --------------------------------------------------------------------------------
+  /************************************************************************************
+   * [12] RENDER PRINCIPAL
+   ************************************************************************************/
   return (
     <Box
-      /**
-       * Contenedor raíz con altura configurable mediante containerHeight.
-       * El scroll se maneja dentro de containerRef (flex: 1; overflow: 'auto').
-       */
       sx={{
         display: 'flex',
         flexDirection: 'column',
@@ -639,7 +609,9 @@ export default function TableView({
         overflow: 'hidden',
       }}
     >
-      {/* Contenedor SCROLLEABLE de la tabla */}
+      {/***********************************************************************
+       * [A] CONTENEDOR SCROLLEABLE DE LA TABLA (REF => containerRef)
+       ***********************************************************************/}
       <Box
         ref={containerRef}
         onContextMenu={handleContextMenu}
@@ -656,7 +628,9 @@ export default function TableView({
         }}
         tabIndex={0}
       >
-        {/* Overlay de “cargando” */}
+        {/*******************************************************************
+         * OVERLAY DE “CARGANDO” (Spinner + texto)
+         ******************************************************************/}
         {loading && (
           <Box
             sx={{
@@ -679,7 +653,9 @@ export default function TableView({
           </Box>
         )}
 
-        {/* Overlay de “sin resultados” */}
+        {/*******************************************************************
+         * OVERLAY DE “SIN RESULTADOS”
+         ******************************************************************/}
         {!loading && rows.length === 0 && (
           <Box
             sx={{
@@ -704,7 +680,9 @@ export default function TableView({
           </Box>
         )}
 
-        {/* Tabla HTML */}
+        {/*******************************************************************
+         * TABLA PRINCIPAL (HTML)
+         ******************************************************************/}
         <table className="custom-table" style={{ width: '100%' }}>
           <colgroup>
             {table.getVisibleFlatColumns().map((col, cIndex) => {
@@ -725,7 +703,9 @@ export default function TableView({
             })}
           </colgroup>
 
-          {/* THEAD sticky */}
+          {/*****************************************************************
+           * THEAD (Sticky) => Cabecera
+           *****************************************************************/}
           <thead
             style={{
               position: 'sticky',
@@ -739,7 +719,6 @@ export default function TableView({
                 {headerGroup.headers.map((header, hIndex) => {
                   const colId = header.column.id;
                   const isIndexCol = colId === '_selectIndex';
-
                   return (
                     <th
                       key={header.id}
@@ -780,10 +759,7 @@ export default function TableView({
                                 padding: '2px',
                               }}
                             >
-                              <FilterListIcon
-                                fontSize="inherit"
-                                style={{ fontSize: '14px' }}
-                              />
+                              <FilterListIcon fontSize="inherit" style={{ fontSize: '14px' }} />
                             </IconButton>
                           </div>
                         )}
@@ -804,10 +780,12 @@ export default function TableView({
             ))}
           </thead>
 
-          {/* TBODY (filas) */}
+          {/*****************************************************************
+           * TBODY => Filas
+           *****************************************************************/}
           <tbody>
             {rows.map((row, rIndex) => {
-              const rowId = row.id;
+              const rowId = row.id; // ID real de la fila
               const rowIsHighlighted = highlightedRowIndex === rIndex;
 
               return (
@@ -824,7 +802,7 @@ export default function TableView({
                     const colId = cell.column.id;
                     const isIndexCol = colId === '_selectIndex';
 
-                    // Determinar si la celda está seleccionada o ha sido copiada
+                    // ¿La celda está seleccionada o copiada?
                     const isSelected = selectedCells.some(
                       (sc) => sc.id === rowId && sc.colField === colId
                     );
@@ -832,11 +810,11 @@ export default function TableView({
                       (cc) => cc.id === rowId && cc.colField === colId
                     );
 
-                    // ¿Edición en línea activa?
+                    // ¿En edición inline?
                     const inEditingMode = isEditingCell(rowId, colId);
                     const rawValue = cell.getValue();
-                    // Render custom si la columna define su propio "cell",
-                    // de lo contrario, usamos el valor crudo.
+
+                    // Renderizador custom, si la columna define su propio "cell"
                     const customRender = cell.column.columnDef.cell
                       ? cell.column.columnDef.cell({
                           getValue: () => rawValue,
@@ -874,7 +852,7 @@ export default function TableView({
                     return (
                       <td
                         key={cell.id}
-                        data-row={rIndex}
+                        data-row={rowId}
                         data-col={cIndex}
                         className={`custom-td ${
                           isSelected ? SELECTED_CELL_CLASS : ''
@@ -889,11 +867,13 @@ export default function TableView({
                         onDoubleClick={() => handleDoubleClick(rowId, colId, displayValue)}
                         onClick={() => handleCellClick(rIndex)}
                         onMouseDown={(evt) => {
+                          // Si es la col índice, iniciamos arrastre de fila
                           if (isIndexCol) {
                             handleRowIndexMouseDown(evt, rIndex, rowId);
                           }
                         }}
                         onTouchStart={(evt) => {
+                          // Si es la col índice, iniciamos arrastre de fila
                           if (isIndexCol && evt.touches.length === 1) {
                             handleRowIndexTouchStart(evt, rIndex, rowId);
                           }
@@ -909,7 +889,9 @@ export default function TableView({
           </tbody>
         </table>
 
-        {/* Popover para filtros por columna */}
+        {/*******************************************************************
+         * POPOVER PARA CONFIGURAR FILTROS DE COLUMNA
+         ******************************************************************/}
         <Popover
           open={Boolean(anchorEl)}
           anchorEl={anchorEl}
@@ -925,7 +907,9 @@ export default function TableView({
           />
         </Popover>
 
-        {/* Menú contextual (copiar, ocultar col/filas) */}
+        {/*******************************************************************
+         * MENÚ CONTEXTUAL => COPIAR / OCULTAR FILAS O COLUMNAS
+         ******************************************************************/}
         <Menu
           open={contextMenu !== null}
           onClose={handleCloseContextMenu}
@@ -946,7 +930,9 @@ export default function TableView({
         </Menu>
       </Box>
 
-      {/* Barra de paginación sticky */}
+      {/***********************************************************************
+       * [B] BARRA DE PAGINACIÓN (Sticky, en el bottom)
+       ***********************************************************************/}
       <Box
         sx={{
           position: 'sticky',

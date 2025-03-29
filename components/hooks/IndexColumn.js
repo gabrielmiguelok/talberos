@@ -2,8 +2,11 @@
  * Archivo: /components/CustomTable/IndexColumn.js
  * LICENSE: MIT
  *
- * Define la columna de índice (número de fila).
- * Puedes escalarlo para agregar más props o metadatos en el futuro.
+ * DESCRIPCIÓN:
+ *   Define la columna de índice (número de fila).
+ *   Aquí podrías escalar la lógica para incluir checkboxes, etc.
+ *
+ * @version 1.0
  */
 
 import { createColumnHelper } from '@tanstack/react-table';
