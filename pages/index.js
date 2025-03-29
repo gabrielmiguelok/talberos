@@ -172,42 +172,6 @@ export default function IndexTalberos() {
         {/* GRID DE TABLEROS */}
         <Zoom cascade damping={0.1} triggerOnce>
           <Grid container spacing={6} justifyContent="center" alignItems="flex-start">
-            {/* TABLERO VERSIÓN CLARA */}
-            <Grid item>
-              <Tilt perspective={900} glareEnable glareMaxOpacity={0.15} style={{ height: '100%' }}>
-                <Paper
-                  elevation={PAPER_ELEVATION}
-                  sx={{
-                    p: 3,
-                    borderRadius: PAPER_BORDER_RADIUS,
-                    backgroundColor: PAPER_LIGHT_BG,
-                    maxWidth: 450,
-                    margin: '0 auto',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    textAlign: 'center',
-                    ...PAPER_HOVER_EFFECT,
-                  }}
-                >
-                  <Title
-                    text="Versión Clara"
-                    variant="h6"
-                    color="#333"
-                    marginBottom={2}
-                  />
-                  {/* Scroll interno sólo para la tabla => pasamos containerHeight */}
-                  <Box sx={{ maxHeight: TABLE_MAX_HEIGHT, overflow: 'hidden' }}>
-                    <CustomTable
-                      data={dataArray}
-                      columnsDef={columns}
-                      themeMode="light"
-                      containerHeight={`${TABLE_MAX_HEIGHT}px`}
-                    />
-                  </Box>
-                </Paper>
-              </Tilt>
-            </Grid>
-
             {/* TABLERO VERSIÓN OSCURA */}
             <Grid item>
               <Tilt perspective={900} glareEnable glareMaxOpacity={0.15} style={{ height: '100%' }}>
@@ -237,6 +201,41 @@ export default function IndexTalberos() {
                       data={dataArray}
                       columnsDef={columns}
                       themeMode="dark"
+                      containerHeight={`${TABLE_MAX_HEIGHT}px`}
+                    />
+                  </Box>
+                </Paper>
+              </Tilt>
+            </Grid>
+          {/* TABLERO VERSIÓN CLARA */}
+            <Grid item>
+              <Tilt perspective={900} glareEnable glareMaxOpacity={0.15} style={{ height: '100%' }}>
+                <Paper
+                  elevation={PAPER_ELEVATION}
+                  sx={{
+                    p: 3,
+                    borderRadius: PAPER_BORDER_RADIUS,
+                    backgroundColor: PAPER_LIGHT_BG,
+                    maxWidth: 450,
+                    margin: '0 auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    textAlign: 'center',
+                    ...PAPER_HOVER_EFFECT,
+                  }}
+                >
+                  <Title
+                    text="Versión Clara"
+                    variant="h6"
+                    color="#333"
+                    marginBottom={2}
+                  />
+                  {/* Scroll interno sólo para la tabla => pasamos containerHeight */}
+                  <Box sx={{ maxHeight: TABLE_MAX_HEIGHT, overflow: 'hidden' }}>
+                    <CustomTable
+                      data={dataArray}
+                      columnsDef={columns}
+                      themeMode="light"
                       containerHeight={`${TABLE_MAX_HEIGHT}px`}
                     />
                   </Box>
