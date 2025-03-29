@@ -190,7 +190,7 @@ export default function IndexTalberos() {
                   }}
                 >
                   <Title
-                    text="Versión Oscura"
+                    text="Dark"
                     variant="h6"
                     color="#FF00AA"
                     marginBottom={2}
@@ -225,7 +225,7 @@ export default function IndexTalberos() {
                   }}
                 >
                   <Title
-                    text="Versión Clara"
+                    text="Light"
                     variant="h6"
                     color="#333"
                     marginBottom={2}
