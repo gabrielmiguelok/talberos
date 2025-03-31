@@ -2,27 +2,48 @@
 
 /**
  * MIT License
- * -----------
+ * ----------------------------------------------------------------------------
  * Archivo: /components/Menu.js
  *
  * DESCRIPCIÓN:
- *   - Este componente representa un menú de navegación flotante que permite gestionar la autenticación del usuario,
- *     el acceso al repositorio y el cierre de sesión.
- *   - Se elimina la capacidad de cambiar de tema en la barra de navegación, reemplazándola por un toggle de autenticación
- *     que permite iniciar o cerrar sesión.
- *   - El botón principal ahora muestra "Talberos Gratis" y redirige a https://github.com/gabrielmiguelok/talberos.
- *   - Se sigue una arquitectura modular y se aplican los principios SOLID:
- *       * SRP: Cada función tiene una única responsabilidad.
- *       * OCP: El componente es fácilmente extensible sin modificar la estructura base.
- *       * LSP: Los componentes pueden ser sustituidos sin alterar el comportamiento.
- *       * ISP: Las interfaces son específicas y livianas.
- *       * DIP: Se abstraen las dependencias (rutas, autenticación) para facilitar futuros cambios.
- *   - Actualización: Se corrige la solicitud al endpoint de logout para utilizar el método POST y se actualizan los íconos
- *     de iniciar y cerrar sesión a VpnKeyIcon y PowerSettingsNewIcon, respectivamente, para una mejor representación.
+ *  - Menú de navegación flotante para Talberos (estilo "dock" que puede desacoplarse).
+ *  - Incluye:
+ *     1) Botón principal que redirige al repositorio open source de Talberos.
+ *     2) Botón de autenticación (inicia/cierra sesión).
+ *     3) Botón de "Blog" que lleva a la ruta /blog.
+ *
+ * PRINCIPIOS SOLID:
+ *  - SRP (Single Responsibility Principle): este componente se encarga únicamente
+ *    de la navegación y autenticación.
+ *  - OCP (Open/Closed Principle): se puede extender añadiendo más ítems sin modificar
+ *    la estructura base.
+ *  - LSP (Liskov Substitution Principle): funciones internas se pueden sustituir o
+ *    reimplementar sin alterar el comportamiento general.
+ *  - ISP (Interface Segregation Principle): las props son mínimas y específicas.
+ *  - DIP (Dependency Inversion Principle): se abstraen detalles como rutas de logout,
+ *    presuponiendo endpoints que podrían cambiar.
+ *
+ * AUTODOCUMENTACIÓN:
+ *  - Cada función interna describe su responsabilidad.
+ *  - Código alineado con buenas prácticas de Clean Code (nomenclatura clara, comentarios
+ *    donde realmente aporta valor, estructuras lógicas concisas).
+ *
+ * @version 1.1
+ * ----------------------------------------------------------------------------
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { AppBar, Toolbar, Box, Button, IconButton, Tooltip, Drawer, useMediaQuery, useTheme } from '@mui/material';
+import {
+  AppBar,
+  Toolbar,
+  Box,
+  Button,
+  IconButton,
+  Tooltip,
+  Drawer,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material';
 import { useSpring, animated } from '@react-spring/web';
 import { useDrag } from '@use-gesture/react';
 import { useRouter } from 'next/router';
@@ -30,25 +51,32 @@ import { useRouter } from 'next/router';
 // Íconos para la barra de navegación
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
-// Íconos actualizados para autenticación:
-// - VpnKeyIcon para iniciar sesión (representa el acceso seguro mediante clave)
-// - PowerSettingsNewIcon para cerrar sesión (representa la acción de desconexión)
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 
+/**
+ * Componente principal de Menú de navegación.
+ * @param {Object} props
+ * @param {boolean} [props.isDarkMode=true] - Indica si se utilizará una paleta oscura (por si se decide).
+ * @param {number} [props.navHeight=60] - Altura del AppBar.
+ * @param {number} [props.dockThreshold=40] - Distancia en px para "acoplar" el menú arriba al soltar el arrastre.
+ * @returns JSX.Element
+ */
 export default function Menu({
   isDarkMode = true,
   navHeight = 60,
   dockThreshold = 40,
 }) {
-  // Estado de autenticación y control de UI
+  // -------------------------------------------------------------------------
+  // [A] ESTADO Y REFERENCIAS
+  // -------------------------------------------------------------------------
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState(null);
   const [isDocked, setIsDocked] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const dockRef = useRef(null); // Referencia para el AppBar "acoplado"
 
-  // Referencia para la posición acoplada del menú
-  const dockRef = useRef(null);
+  // Posición y dimensiones del menú cuando se desacopla
   const [floatStyle, setFloatStyle] = useState({
     top: 0,
     left: 0,
@@ -56,22 +84,31 @@ export default function Menu({
     height: navHeight,
   });
 
-  // Configuración de animación para el arrastre
+  // React Spring para animar el arrastre
   const [springStyle, api] = useSpring(() => ({ x: 0, y: 0 }));
+
+  // Hooks para responsive y routing
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const router = useRouter();
 
-  // Estilos y colores fijos para la barra de navegación
+  // -------------------------------------------------------------------------
+  // [B] CONSTANTES DE COLOR Y ESTILO
+  // -------------------------------------------------------------------------
+  // Alineado con la paleta usada en Talberos (fondos oscuros + acento magenta)
   const NAVBAR_BACKGROUND = 'linear-gradient(135deg, #FF00AA 50%, #1F1F1F 80%)';
   const NAVBAR_TEXT_COLOR = '#1F1F1F';
   const NAVBAR_BUTTON_BG = '#FF00AA';
   const NAVBAR_HOVER_BG = '#FF00AA';
   const NAVBAR_ELEVATION = '0px 2px 8px rgba(0, 0, 0, 0.7)';
 
+  // -------------------------------------------------------------------------
+  // [C] EFECTO: VERIFICAR AUTENTICACIÓN
+  // -------------------------------------------------------------------------
   /**
-   * Verifica la autenticación del usuario al montar el componente.
-   * Realiza una solicitud al endpoint /api/auth/verify para obtener el estado actual.
+   * checkAuth
+   * Llama al endpoint /api/auth/verify para determinar si el usuario está logueado.
+   * Asume que en caso de error o no autenticado, se retorna un JSON con { error, userEmail: null }.
    */
   useEffect(() => {
     async function checkAuth() {
@@ -94,8 +131,15 @@ export default function Menu({
     checkAuth();
   }, []);
 
+  // -------------------------------------------------------------------------
+  // [D] LÓGICA DE ARRASTRE
+  // -------------------------------------------------------------------------
   /**
-   * Controla la funcionalidad de arrastre del menú flotante.
+   * hook useDrag
+   * Permite que el menú se "desacople" y se arrastre libremente en la pantalla.
+   * Cuando first === true y isDocked === true, se mide la posición para transicionar.
+   * Cuando se suelta (last === true), si la posición top es menor que dockThreshold,
+   * se vuelve a acoplar isDocked = true.
    */
   const bind = useDrag(
     ({ offset: [ox, oy], first, last }) => {
@@ -116,8 +160,10 @@ export default function Menu({
       }
 
       if (!isDocked) {
+        // Actualiza la posición mientras se arrastra
         api.start({ x: ox, y: oy });
         if (last) {
+          // Al soltar, vemos si se reconecta arriba
           const finalTop = floatStyle.top + oy;
           if (finalTop < dockThreshold) {
             setIsDocked(true);
@@ -129,14 +175,20 @@ export default function Menu({
     { filterTaps: false }
   );
 
+  // -------------------------------------------------------------------------
+  // [E] HANDLERS DE AUTENTICACIÓN
+  // -------------------------------------------------------------------------
   /**
-   * Redirige al usuario al endpoint de login.
+   * handleLogin
+   * Redirige a /api/auth/google para iniciar sesión con Google.
    */
-  const handleLogin = () => router.push('/api/auth/google');
+  const handleLogin = () => {
+    router.push('/api/auth/google');
+  };
 
   /**
-   * Envía una solicitud POST al endpoint de logout para cerrar sesión.
-   * Actualiza el estado de autenticación y redirige al usuario a la página principal.
+   * handleLogout
+   * Llama a /api/auth/logout (POST), y si es exitoso, regresa la app al home '/'.
    */
   const handleLogout = async () => {
     try {
@@ -146,16 +198,19 @@ export default function Menu({
         setUserEmail(null);
         router.push('/');
       } else {
-        console.error('Error al cerrar sesión: ', response.statusText);
+        console.error('Error al cerrar sesión:', response.statusText);
       }
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
     }
   };
 
+  // -------------------------------------------------------------------------
+  // [F] SUBCOMPONENTES DE BOTONES
+  // -------------------------------------------------------------------------
   /**
-   * Botón principal que siempre muestra "Talberos es Gratis" y redirige
-   * al repositorio de Talberos en GitHub.
+   * MainButton
+   * Botón que siempre dirige al repositorio oficial de Talberos (Open Source).
    */
   function MainButton() {
     const handleClick = () => {
@@ -176,15 +231,14 @@ export default function Menu({
           },
         }}
       >
-        Open Source !
+        Talberos es LIBRE !
       </Button>
     );
   }
 
   /**
-   * Botón toggle de autenticación.
-   * Muestra "Iniciar sesión" (con VpnKeyIcon) si el usuario no está autenticado,
-   * o "Cerrar sesión" (con PowerSettingsNewIcon) si ya lo está.
+   * AuthToggleButton
+   * Muestra "Iniciar sesión" (con ícono VpnKey) o "Cerrar sesión" (con PowerSettingsNewIcon).
    */
   function AuthToggleButton() {
     const tooltipTitle = isAuthenticated ? 'Cerrar sesión' : 'Iniciar sesión';
@@ -200,7 +254,7 @@ export default function Menu({
           sx={{
             border: 2,
             color: NAVBAR_BUTTON_BG,
-            background: "#1F1F1F",
+            background: '#1F1F1F',
             '&:hover': {
               backgroundColor: NAVBAR_HOVER_BG,
             },
@@ -218,19 +272,53 @@ export default function Menu({
   }
 
   /**
-   * Contenido de la barra de navegación para escritorio.
+   * BlogButton
+   * Nuevo botón para redirigir a la página principal del Blog (/blog).
+   */
+  function BlogButton() {
+    const handleNavigateBlog = () => {
+      router.push('/blog');
+    };
+    return (
+      <Button
+        variant="contained"
+        onClick={handleNavigateBlog}
+        sx={{
+          bgcolor: NAVBAR_TEXT_COLOR,
+          fontFamily: 'var(--font-family-main)',
+          textTransform: 'none',
+          color: NAVBAR_BUTTON_BG,
+          fontWeight: 600,
+          '&:hover': {
+            backgroundColor: NAVBAR_TEXT_COLOR,
+          },
+        }}
+      >
+        Blog
+      </Button>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // [G] BARRA DE NAVEGACIÓN (DESKTOP Y MÓVIL)
+  // -------------------------------------------------------------------------
+  /**
+   * DesktopNav
+   * Muestra botones en línea (repositorio, blog, autenticación) cuando no estamos en móvil.
    */
   function DesktopNav() {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         <MainButton />
+        <BlogButton />
         <AuthToggleButton />
       </Box>
     );
   }
 
   /**
-   * Contenido del menú lateral para dispositivos móviles.
+   * MobileMenuContent
+   * Menú lateral para pantallas pequeñas (Drawer).
    */
   function MobileMenuContent() {
     return (
@@ -252,10 +340,17 @@ export default function Menu({
           </IconButton>
         </Box>
 
+        {/* Botón de repositorio */}
         <Box onClick={() => setMobileMenuOpen(false)}>
           <MainButton />
         </Box>
 
+        {/* Botón de Blog */}
+        <Box onClick={() => setMobileMenuOpen(false)}>
+          <BlogButton />
+        </Box>
+
+        {/* Botón de login/logout */}
         <Box onClick={() => setMobileMenuOpen(false)}>
           <AuthToggleButton />
         </Box>
@@ -264,7 +359,8 @@ export default function Menu({
   }
 
   /**
-   * Estructura principal de la barra de navegación (AppBar).
+   * NavBarContent
+   * Estructura principal del AppBar (barra superior).
    */
   function NavBarContent() {
     return (
@@ -289,7 +385,7 @@ export default function Menu({
             px: 2,
           }}
         >
-          {/* Logo: Redirige al home al hacer clic */}
+          {/* Logo: vuelve a home al hacer clic */}
           <Box
             sx={{
               display: 'flex',
@@ -312,7 +408,7 @@ export default function Menu({
             />
           </Box>
 
-          {/* Selección entre menú móvil y de escritorio */}
+          {/* Vista desktop vs. mobile */}
           {isMobile ? (
             <IconButton onClick={() => setMobileMenuOpen(true)}>
               <MenuIcon sx={{ color: NAVBAR_BUTTON_BG }} />
@@ -325,12 +421,13 @@ export default function Menu({
     );
   }
 
-  /**
-   * Renderiza el menú flotante en función de si está acoplado o no.
-   */
+  // -------------------------------------------------------------------------
+  // [H] RENDER PRINCIPAL
+  // -------------------------------------------------------------------------
   return (
     <>
       {isDocked ? (
+        // MODO "ACOPLADO" (Dock)
         <div
           ref={dockRef}
           style={{
@@ -340,7 +437,8 @@ export default function Menu({
           }}
         >
           <NavBarContent />
-          {/* Área draggable superpuesta (transparente) */}
+
+          {/* Área "transparente" para permitir arrastrar */}
           <div
             style={{
               position: 'absolute',
@@ -355,6 +453,7 @@ export default function Menu({
           />
         </div>
       ) : (
+        // MODO "DESACOPLADO": Menú flotante que se arrastra
         <animated.div
           style={{
             position: 'absolute',
@@ -375,6 +474,7 @@ export default function Menu({
         </animated.div>
       )}
 
+      {/* Menú lateral para móvil */}
       <Drawer
         anchor="right"
         open={mobileMenuOpen}
