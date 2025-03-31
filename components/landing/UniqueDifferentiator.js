@@ -11,18 +11,14 @@
  * Principios SOLID aplicados:
  * - **S**ingle Responsibility: Cada parte del código cumple una función específica (datos de bloques,
  *   secciones de contenido, estilo visual).
- * - **O**pen/Closed: La estructura se puede ampliar con más secciones u otros bloques sin
- *   modificar la base.
- * - **L**iskov Substitution: Al ser componentes funcionales independientes (sin herencia),
- *   pueden sustituirse o moverse libremente.
- * - **I**nterface Segregation: El componente no fuerza props innecesarias, se mantiene
- *   conciso en lo que recibe y muestra.
- * - **D**ependency Inversion: No hay dependencias rígidas ni herencia; cada elemento funciona
- *   con datos externos independientes (por ejemplo, `bloquesDestacados`).
+ * - **O**pen/Closed: La estructura se puede ampliar con más secciones u otros bloques sin modificar la base.
+ * - **L**iskov Substitution: Al ser componentes funcionales independientes (sin herencia), pueden sustituirse o moverse libremente.
+ * - **I**nterface Segregation: El componente no fuerza props innecesarias y se mantiene conciso.
+ * - **D**ependency Inversion: Cada elemento utiliza datos externos independientes (ej. `bloquesDestacados`).
  *
  * Cohesión y autodocumentación:
- * - Se han incluido comentarios de JSDoc que explican la intención de cada parte.
- * - Se evita el acoplamiento excesivo (todo está modularizado y cumple un objetivo claro).
+ * - Se incluyen comentarios JSDoc que explican la intención de cada parte.
+ * - Se evita el acoplamiento excesivo, manteniendo una estructura modular y clara.
  */
 
 import React from 'react';
@@ -36,7 +32,7 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  useMediaQuery
+  useMediaQuery,
 } from '@mui/material';
 
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
@@ -49,9 +45,8 @@ import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 
 /**
- * Bloques destacados que comunican los pilares fundamentales de Talberos
- * sin abundar en tecnicismos. Cada bloque tiene un ícono, un título y
- * un texto explicativo.
+ * Bloques destacados que comunican los pilares fundamentales de Talberos sin entrar en tecnicismos.
+ * Cada bloque contiene un ícono, un título y un texto explicativo.
  */
 const bloquesDestacados = [
   {
@@ -78,15 +73,14 @@ const bloquesDestacados = [
 ];
 
 /**
- * Componente principal que describe el “Diferenciador Único” de Talberos:
- * - Incluye una presentación enfocada en la propuesta de valor.
- * - Muestra los bloques destacados (arriba).
- * - Muestra una sección intermedia con ejemplos de fortalezas (Clean Code, modularidad, etc.).
- * - Concluye con un “resultado final” que realza la ventaja de Talberos para
- *   optimizar y asegurar tu proyecto.
+ * Componente principal que describe el “Diferenciador Único” de Talberos.
+ * - Muestra una introducción con título y descripción.
+ * - Renderiza los bloques destacados.
+ * - Presenta una sección intermedia con un ejemplo visual y lista de fortalezas.
+ * - Concluye con un bloque final resaltado.
  *
  * @function UniqueDifferentiator
- * @returns {JSX.Element} Sección completa con la información adaptada.
+ * @returns {JSX.Element} Sección completa lista para integrarse en la landing page.
  */
 export default function UniqueDifferentiator() {
   const theme = useTheme();
@@ -105,87 +99,111 @@ export default function UniqueDifferentiator() {
         px: { xs: 2, md: 6 },
         userSelect: 'none',
       }}
+      aria-label="Diferenciador Único de Talberos"
     >
       {/* ENCABEZADO PRINCIPAL */}
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.8 }}
-        style={{ textAlign: 'center' }}
-      >
-        <Typography variant="h3" fontWeight="bold" sx={{ color: '#FF00AA', mb: 3 }}>
-          ¿Por qué Talberos es único?
-        </Typography>
-        <Typography sx={{ color: '#fff', mb: 6, maxWidth: '800px', margin: '0 auto' }}>
-          Combinamos la experiencia de una tabla Excel-like con la libertad
-          de un proyecto Open Source. Talberos nace para crecer contigo y
-          mantener tu código claro y seguro, incluso cuando tus datos se multipliquen.
-        </Typography>
-      </motion.div>
+      <header>
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          style={{ textAlign: 'center' }}
+        >
+          <Typography
+            variant="h3"
+            component="h2"
+            fontWeight="bold"
+            sx={{ color: '#FF00AA', mb: 4 }}
+          >
+            ¿Por qué Talberos es único?
+          </Typography>
+          <Typography
+            component="p"
+            sx={{
+              color: '#fff',
+              mb: 8,
+              maxWidth: '800px',
+              mx: 'auto',
+              lineHeight: 1.6,
+            }}
+          >
+            Combinamos la experiencia de una tabla Excel-like con la libertad
+            de un proyecto Open Source. Talberos nace para crecer contigo y
+            mantener tu código claro y seguro, incluso cuando tus datos se multipliquen.
+          </Typography>
+        </motion.div>
+      </header>
 
-      {/* BLOQUES DESTACADOS (Arriba) */}
-      <Grid container spacing={4} alignItems="stretch">
-        {bloquesDestacados.map((bloque, index) => (
-          <Grid item xs={12} md={4} key={index}>
-            <motion.div
-              style={{ height: '100%' }}
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8, delay: index * 0.2 }}
-            >
-              <Card
-                sx={{
-                  backgroundColor: '#242424',
-                  borderRadius: 3,
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  textAlign: 'center',
-                  p: 3,
-                }}
-                elevation={6}
+      {/* BLOQUES DESTACADOS */}
+      <Box sx={{ mb: 10 }}>
+        <Grid container spacing={4} alignItems="stretch">
+          {bloquesDestacados.map((bloque, index) => (
+            <Grid item xs={12} md={4} key={index}>
+              <motion.div
+                style={{ height: '100%' }}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: index * 0.2 }}
               >
-                {/* Ícono */}
-                <Box sx={{ mb: 2 }}>{bloque.icono}</Box>
-
-                {/* Título */}
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  sx={{ mb: 1, color: '#fff' }}
-                >
-                  {bloque.titulo}
-                </Typography>
-
-                {/* Texto */}
-                <Typography
-                  variant="body2"
+                <Card
                   sx={{
-                    color: '#fff',
-                    lineHeight: 1.6,
+                    backgroundColor: '#242424',
+                    borderRadius: 3,
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    textAlign: 'center',
+                    p: 3,
                   }}
+                  elevation={6}
                 >
-                  {bloque.texto}
-                </Typography>
-              </Card>
-            </motion.div>
-          </Grid>
-        ))}
-      </Grid>
+                  {/* Ícono */}
+                  <Box sx={{ mb: 2 }}>{bloque.icono}</Box>
+
+                  {/* Título */}
+                  <Typography
+                    variant="h6"
+                    component="h3"
+                    fontWeight="bold"
+                    sx={{ mb: 2, color: '#fff' }}
+                  >
+                    {bloque.titulo}
+                  </Typography>
+
+                  {/* Texto descriptivo */}
+                  <Typography
+                    variant="body2"
+                    component="p"
+                    sx={{
+                      color: '#fff',
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {bloque.texto}
+                  </Typography>
+                </Card>
+              </motion.div>
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
 
       {/* SECCIÓN INTERMEDIA */}
       <Box
+        component="section"
         sx={{
           mt: 10,
+          mb: 10,
           borderRadius: 3,
           p: { xs: 4, md: 6 },
           backgroundColor: '#1F1F1F',
           position: 'relative',
         }}
+        aria-label="Enfoque centrado en calidad"
       >
         <motion.div
           initial={{ opacity: 0, x: isMobile ? 0 : -60 }}
@@ -195,28 +213,35 @@ export default function UniqueDifferentiator() {
         >
           <Grid container spacing={4} alignItems="center">
             {/* Imagen o gráfico decorativo */}
-            <Grid item xs={12} md={6}>
-              <CardMedia
-                component="img"
-                image="/logo.png"
-                alt="Talberos Advantage"
-                sx={{
-                  borderRadius: 3,
-                  display: isMobile ? 'none' : 'block',
-                }}
-              />
-            </Grid>
+            {!isMobile && (
+              <Grid item xs={12} md={6}>
+                <CardMedia
+                  component="img"
+                  image="/logo.png"
+                  alt="Talberos Advantage"
+                  sx={{
+                    borderRadius: 3,
+                    width: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+              </Grid>
+            )}
 
-            {/* Texto al lado */}
-            <Grid item xs={12} md={6}>
+            {/* Texto y lista de fortalezas */}
+            <Grid item xs={12} md={isMobile ? 12 : 6}>
               <Typography
                 variant="h4"
+                component="h3"
                 fontWeight="bold"
                 sx={{ color: '#FF00AA', mb: 2 }}
               >
                 Enfoque centrado en calidad
               </Typography>
-              <Typography sx={{ mb: 3, color: '#fff', fontSize: '1rem', lineHeight: 1.7 }}>
+              <Typography
+                component="p"
+                sx={{ mb: 3, color: '#fff', fontSize: '1rem', lineHeight: 1.7 }}
+              >
                 Talberos está dirigido a quienes buscan un producto sólido desde la base:
                 código limpio, modularidad, escalabilidad y seguridad sin rodeos.
               </Typography>
@@ -231,7 +256,6 @@ export default function UniqueDifferentiator() {
                     primaryTypographyProps={{ sx: { color: '#fff' } }}
                   />
                 </ListItem>
-
                 <ListItem disableGutters>
                   <ListItemIcon sx={{ minWidth: 'auto', mr: 1 }}>
                     <CheckCircleOutlineIcon sx={{ color: '#FF00AA' }} />
@@ -241,7 +265,6 @@ export default function UniqueDifferentiator() {
                     primaryTypographyProps={{ sx: { color: '#fff' } }}
                   />
                 </ListItem>
-
                 <ListItem disableGutters>
                   <ListItemIcon sx={{ minWidth: 'auto', mr: 1 }}>
                     <CheckCircleOutlineIcon sx={{ color: '#FF00AA' }} />
@@ -251,7 +274,6 @@ export default function UniqueDifferentiator() {
                     primaryTypographyProps={{ sx: { color: '#fff' } }}
                   />
                 </ListItem>
-
                 <ListItem disableGutters>
                   <ListItemIcon sx={{ minWidth: 'auto', mr: 1 }}>
                     <CheckCircleOutlineIcon sx={{ color: '#FF00AA' }} />
@@ -267,19 +289,35 @@ export default function UniqueDifferentiator() {
         </motion.div>
       </Box>
 
-      {/* RESULTADO FINAL (Texto más grande y destacado) */}
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.8, delay: 0.3 }}
+      {/* RESULTADO FINAL */}
+      <Box
+        component="section"
+        sx={{
+          mt: 10,
+          mb: 4,
+          textAlign: 'center',
+          maxWidth: '900px',
+          mx: 'auto',
+        }}
+        aria-label="Resultado de elegir Talberos"
       >
-        <Box sx={{ mt: 10, textAlign: 'center', maxWidth: '900px', mx: 'auto' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, delay: 0.3 }}
+        >
           <StarOutlineIcon sx={{ color: '#FF00AA', fontSize: 60, mb: 2 }} />
-          <Typography variant="h4" fontWeight="bold" sx={{ color: '#FF00AA', mb: 3 }}>
+          <Typography
+            variant="h4"
+            component="h3"
+            fontWeight="bold"
+            sx={{ color: '#FF00AA', mb: 3 }}
+          >
             El resultado de elegir Talberos
           </Typography>
           <Typography
+            component="p"
             sx={{
               color: '#fff',
               fontSize: '1.1rem',
@@ -287,12 +325,11 @@ export default function UniqueDifferentiator() {
               px: { xs: 2, md: 0 },
             }}
           >
-            Una librería verdaderamente diferenciada: <em>abierta, escalable y con
-            seguridad incorporada</em>. Olvídate de parches improvisados: empieza con
-            Talberos y ahorra tiempo, dinero y dolores de cabeza en el futuro.
+            Una librería verdaderamente diferenciada: <em>abierta, escalable y con seguridad incorporada</em>.
+            Olvídate de parches improvisados: empieza con Talberos y ahorra tiempo, dinero y dolores de cabeza en el futuro.
           </Typography>
-        </Box>
-      </motion.div>
+        </motion.div>
+      </Box>
     </Box>
   );
 }

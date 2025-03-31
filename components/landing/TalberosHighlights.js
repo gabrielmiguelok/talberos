@@ -3,27 +3,23 @@
 
 /**
  * @file TalberosHighlights.js
- * @description Componente React que presenta cuatro aspectos clave de Talberos, 
- *              adaptando un diseño de tarjetas con íconos y bullet points. 
- *              Aplicando principios de SOLID y respetando la estética del layout 
- *              con MUI + Framer Motion.
- * 
+ * @description Componente React que presenta cuatro aspectos clave de Talberos,
+ *              mostrando tarjetas con íconos, descripciones y bullet points.
+ *              Se aplican principios SOLID, manteniendo la cohesión y autonomía de cada parte,
+ *              y se optimiza la disposición, accesibilidad y rendimiento para un repositorio MIT.
+ *
  * SRP (Single Responsibility Principle):
- *   - Este componente se encarga ÚNICAMENTE de renderizar la sección con las tarjetas 
- *     de “características principales” de la librería Talberos.
- * 
+ *   - Se encarga exclusivamente de renderizar la sección de “características principales” de Talberos.
+ *
  * OCP (Open/Closed Principle):
- *   - El componente admite la adición de más tarjetas (elementos en `aspectsData`) sin 
- *     requerir modificar la lógica principal.
- * 
+ *   - Permite agregar nuevas tarjetas en `aspectsData` sin modificar la lógica central.
+ *
  * LSP e ISP:
- *   - No hay herencias complejas ni dependencias forzadas. Cada parte se explica por sí misma, 
- *     y el uso de MUI + Framer Motion se encapsula en esta interfaz sin afectar a otras capas.
- * 
+ *   - Cada parte es independiente y no existen herencias innecesarias; la interfaz de MUI y Framer Motion
+ *     se encapsula en componentes autoexplicativos.
+ *
  * DIP (Dependency Inversion Principle):
- *   - El componente no asume detalles de implementación de “cómo se gestiona la data”. 
- *     Recibe la data (en este caso, internamente) y la pinta. Podría extraerse a 
- *     un hook externo si fuera necesario.
+ *   - El componente no asume detalles internos de la gestión de datos, recibiéndolos de forma local.
  */
 
 import React from 'react';
@@ -40,7 +36,7 @@ import {
 } from '@mui/material';
 import { motion } from 'framer-motion';
 
-// Íconos MUI
+// Íconos de Material UI
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import BuildCircleIcon from '@mui/icons-material/BuildCircle';
@@ -48,11 +44,11 @@ import SecurityIcon from '@mui/icons-material/Security';
 
 /**
  * @constant {Array<Object>} aspectsData
- * Contiene la información de cada “aspecto clave” de Talberos.
- *  - title: Título corto y representativo de la característica.
- *  - icon: Ícono JSX que refuerza el concepto.
- *  - description: Breve explicación de por qué es importante en Talberos.
- *  - bulletPoints: Lista de bullet points que amplían la idea principal.
+ * Información de cada “aspecto clave” de Talberos.
+ * - title: Título representativo.
+ * - icon: Ícono que refuerza el concepto.
+ * - description: Explicación breve de la característica.
+ * - bulletPoints: Lista de puntos adicionales.
  */
 const aspectsData = [
   {
@@ -103,9 +99,9 @@ const aspectsData = [
 
 /**
  * @function TalberosHighlights
- * @description Renderiza una sección con tarjetas que muestran los aspectos 
- *              clave de la librería Talberos. 
- * @returns {JSX.Element} Sección lista para ser ubicada en una Landing Page.
+ * @description Renderiza la sección de tarjetas con los aspectos clave de Talberos,
+ *              optimizando espacios, jerarquías y efectos para una experiencia accesible y didáctica.
+ * @returns {JSX.Element} Sección completa para incluir en una Landing Page.
  */
 export default function TalberosHighlights() {
   return (
@@ -115,115 +111,129 @@ export default function TalberosHighlights() {
       sx={{
         position: 'relative',
         overflow: 'hidden',
-        backgroundColor: '#121212', // Fondo sólido oscuro
+        backgroundColor: '#121212', // Fondo oscuro sólido
         color: '#FFFFFF',
         py: { xs: 8, md: 12 },
         px: { xs: 2, md: 6 },
         textAlign: 'center',
-        userSelect: 'none'
+        userSelect: 'none',
       }}
+      aria-label="Características Destacadas de Talberos"
     >
-      {/* Encabezado principal de la sección */}
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.8 }}
-      >
-        <Typography
-          variant="h3"
-          fontWeight="bold"
-          sx={{ color: '#FF00AA', mb: 3 }}
+      {/* Encabezado de la sección */}
+      <header>
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
         >
-          Características Destacadas de Talberos
-        </Typography>
-        <Typography
-          sx={{
-            color: '#fff', 
-            mb: 6,
-            maxWidth: '800px',
-            mx: 'auto',
-            lineHeight: 1.6,
-          }}
-        >
-          Descubre cómo Talberos lleva las tablas en React al siguiente nivel. 
-          Desde la flexibilidad de la licencia MIT hasta la experiencia Excel-like 
-          que tus usuarios necesitan.
-        </Typography>
-      </motion.div>
+          <Typography
+            variant="h3"
+            component="h2"
+            fontWeight="bold"
+            sx={{ color: '#FF00AA', mb: 6 }} // Aumenta el margen inferior para separar el título del contenido
+          >
+            Características Destacadas de Talberos
+          </Typography>
+          <Typography
+            component="p"
+            sx={{
+              color: '#fff',
+              mb: 10,
+              maxWidth: '800px',
+              mx: 'auto',
+              lineHeight: 1.6,
+            }}
+          >
+            Descubre cómo Talberos lleva las tablas en React al siguiente nivel. Desde la
+            flexibilidad de la licencia MIT hasta la experiencia Excel-like que tus usuarios
+            necesitan.
+          </Typography>
+        </motion.div>
+      </header>
 
-      {/* Grid de aspectos clave */}
-      <Grid container spacing={4} alignItems="stretch">
-        {aspectsData.map((aspect, index) => (
-          <Grid key={index} item xs={12} sm={6} md={3}>
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8, delay: index * 0.2 }}
-              whileHover={{ scale: 1.02 }}
-              style={{ height: '100%' }}
-            >
-              <Card
-                sx={{
-                  backgroundColor: '#242424',
-                  borderRadius: 3,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  height: '100%',
-                  p: 3,
-                }}
-                elevation={6}
+      {/* Contenedor de la grilla de tarjetas */}
+      <Box sx={{ mt: 6 }}>
+        <Grid container spacing={4} alignItems="stretch">
+          {aspectsData.map((aspect, index) => (
+            <Grid key={index} item xs={12} sm={6} md={3}>
+              <motion.div
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: index * 0.2 }}
+                whileHover={{ scale: 1.02 }}
+                style={{ height: '100%' }}
               >
-                {/* Ícono y título */}
-                <Box sx={{ textAlign: 'center', mb: 2 }}>
-                  {aspect.icon}
-                  <Typography variant="h6" fontWeight="bold" sx={{ mt: 2, color: '#fff' }}>
-                    {aspect.title}
-                  </Typography>
-                </Box>
+                <Card
+                  sx={{
+                    backgroundColor: '#242424',
+                    borderRadius: 3,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '100%',
+                    p: 3,
+                  }}
+                  elevation={6}
+                >
+                  {/* Encabezado interno de cada tarjeta */}
+                  <Box sx={{ textAlign: 'center', mb: 3 }}>
+                    {aspect.icon}
+                    <Typography
+                      variant="h6"
+                      component="h3"
+                      fontWeight="bold"
+                      sx={{ mt: 2, mb: 2, color: '#fff' }}
+                    >
+                      {aspect.title}
+                    </Typography>
+                  </Box>
 
-                {/* Contenido principal: descripción y bullets */}
-                <CardContent sx={{ flexGrow: 1, p: 0 }}>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color: '#fff',
-                      mb: 2,
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {aspect.description}
-                  </Typography>
+                  {/* Contenido descriptivo y lista de bullet points */}
+                  <CardContent sx={{ flexGrow: 1, p: 0 }}>
+                    <Typography
+                      variant="body2"
+                      component="p"
+                      sx={{
+                        color: '#fff',
+                        mb: 3,
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {aspect.description}
+                    </Typography>
 
-                  <List sx={{ p: 0 }}>
-                    {aspect.bulletPoints.map((point, i) => (
-                      <ListItem key={i} disableGutters>
-                        <ListItemIcon sx={{ minWidth: 'auto', mr: 1 }}>
-                          <CheckCircleOutlineIcon sx={{ color: '#FF00AA', fontSize: 20 }} />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={point}
-                          primaryTypographyProps={{
-                            variant: 'body2',
-                            sx: { color: '#fff' },
-                          }}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Grid>
-        ))}
-      </Grid>
+                    <List sx={{ p: 0 }}>
+                      {aspect.bulletPoints.map((point, i) => (
+                        <ListItem key={i} disableGutters sx={{ mb: 1 }}>
+                          <ListItemIcon sx={{ minWidth: 'auto', mr: 1 }}>
+                            <CheckCircleOutlineIcon sx={{ color: '#FF00AA', fontSize: 20 }} />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={point}
+                            primaryTypographyProps={{
+                              variant: 'body2',
+                              sx: { color: '#fff' },
+                            }}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
 
-      {/* Burbujas decorativas (opcional, para dar un toque visual) */}
+      {/* Elementos decorativos: burbujas con efectos de opacidad */}
       <motion.div
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 0.12 }}
         transition={{ duration: 1, delay: 0.5 }}
+        aria-hidden="true"
         style={{
           position: 'absolute',
           top: '15%',
@@ -239,6 +249,7 @@ export default function TalberosHighlights() {
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 0.1 }}
         transition={{ duration: 1, delay: 0.8 }}
+        aria-hidden="true"
         style={{
           position: 'absolute',
           bottom: '10%',

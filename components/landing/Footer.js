@@ -6,23 +6,24 @@
  * LICENCIA: MIT
  *
  * OBJETIVO:
- *   - Un footer responsivo y centrado en mobile, organizado y accesible,
- *     aplicado a un proyecto MIT con propósitos educativos y enfoque SOLID.
- *   - Todos los subcomponentes tienen una sola responsabilidad.
- *   - Contiene auto-documentación clara para enseñar las buenas prácticas.
+ *   - Ofrecer un footer responsivo y accesible, centrado en mobile y
+ *     bien distribuido en desktop, para un proyecto con fines educativos.
+ *   - Aplicar principios SOLID y mantener una excelente autodocumentación.
  *
- * ESTRUCTURA:
+ * ESTRUCTURA DE SUBCOMPONENTES:
  *   1) NoPaymentSection:    Indica que no existen planes de pago (100% gratis).
  *   2) FooterLegalLinks:    Enlaces legales o informativos.
  *   3) FooterContact:       Datos de contacto de Talberos (email, teléfono).
  *   4) FooterBrand:         Logo, nombre y redes sociales de Talberos.
  *   5) FooterRefactorSOLID: Componente principal que orquesta el layout.
  *
- * DETALLES DE DISEÑO:
- *   - Modo mobile: Contenido centrado (text-align: center), con secciones
- *     apiladas verticalmente y márgenes consistentes.
- *   - Modo escritorio: Distribución en columnas por Grid, con estilos
- *     limpios y espacios adecuados, manteniendo accesibilidad.
+ * PRINCIPIOS SOLID:
+ *   - SRP: Cada subcomponente cumple una sola responsabilidad (mostrar datos de contacto, enlaces legales, etc.).
+ *   - OCP: Se pueden añadir enlaces, secciones o estilos adicionales sin alterar el núcleo del footer.
+ *   - LSP e ISP: No hay herencias complejas ni dependencias forzadas; cada parte se explica por sí misma.
+ *   - DIP: El footer no asume cómo o dónde se obtienen los datos (solo recibe props); sus dependencias (e.g. redes sociales) están aisladas.
+ *
+ * AUTOR: Talberos (Proyecto Educativo)
  */
 
 import React from "react";
@@ -37,19 +38,28 @@ import {
 } from "@mui/material";
 import { motion } from "framer-motion";
 import { FaTimesCircle } from "react-icons/fa";
+
+// Ejemplo de redes sociales, importado de un utils
 import { socialNetworksOptions } from "@utils/socialNetworksOptions";
 
 /* -----------------------------------------------------------------------------
    1) SUBCOMPONENTE: NoPaymentSection
    ------------------------------------------------------------------------------
-   - Responsabilidad: Mostrar que “Talberos” es 100% gratis, sin planes de pago.
-   - Estructura: Ícono X + texto breve, centrable.
-   - Uso: Se integra en el footer para enfatizar que no hay costos.
+   - Responsabilidad: Mostrar que “Talberos” es 100% gratis y enfatizar que
+     no existen planes de pago.
+   - Estructura: Título + Ícono X + texto (todo alineado o centrado).
+   - Uso: Incrustado en el Footer para reforzar la idea de gratuidad.
 ------------------------------------------------------------------------------ */
 function NoPaymentSection({ sectionTitle }) {
   return (
-    <Box textAlign="center">
+    <Box
+      component="section"
+      aria-labelledby="no-payment-title"
+      textAlign="center"
+      sx={{ mb: { xs: 3, md: 4 } }}
+    >
       <Typography
+        id="no-payment-title"
         component="h3"
         variant="subtitle1"
         sx={{ fontWeight: "bold", mb: 1, color: "#FF00AA" }}
@@ -79,7 +89,7 @@ function NoPaymentSection({ sectionTitle }) {
             }}
             aria-hidden="true"
           >
-            {/* Ícono que refuerza la idea de 'sin pagos' */}
+            {/* Ícono que refuerza la idea de 'sin planes de pago' */}
             <FaTimesCircle size={24} style={{ color: "#fff" }} />
           </Box>
         </motion.div>
@@ -100,12 +110,18 @@ function NoPaymentSection({ sectionTitle }) {
    ------------------------------------------------------------------------------
    - Responsabilidad: Lista de enlaces legales / informativos (ej.: Aviso Legal).
    - Estructura: Título + <ul> con <li> enlazados.
-   - Uso: Explicitar rutas a documentos legales o secciones.
+   - Uso: Explicitar rutas a documentos legales o secciones útiles al usuario.
 ------------------------------------------------------------------------------ */
 function FooterLegalLinks({ sectionTitle, linksData }) {
   return (
-    <Box textAlign="center">
+    <Box
+      component="section"
+      aria-labelledby="legal-links-title"
+      textAlign="center"
+      sx={{ mb: { xs: 3, md: 4 } }}
+    >
       <Typography
+        id="legal-links-title"
         component="h3"
         variant="subtitle1"
         sx={{ fontWeight: "bold", mb: 1, color: "#FF00AA" }}
@@ -114,10 +130,16 @@ function FooterLegalLinks({ sectionTitle, linksData }) {
       </Typography>
       <Box
         component="ul"
-        sx={{ listStyle: "none", paddingLeft: 0, margin: 0, display: "inline-block" }}
+        sx={{
+          listStyle: "none",
+          paddingLeft: 0,
+          margin: 0,
+          display: "inline-block",
+          textAlign: "left",
+        }}
       >
         {linksData.map(({ href, label }) => (
-          <li key={label} style={{ textAlign: "left" }}>
+          <li key={label}>
             <Link
               href={href}
               underline="none"
@@ -146,8 +168,14 @@ function FooterLegalLinks({ sectionTitle, linksData }) {
 ------------------------------------------------------------------------------ */
 function FooterContact({ sectionTitle, contactEmail, contactPhone }) {
   return (
-    <Box textAlign="center">
+    <Box
+      component="section"
+      aria-labelledby="footer-contact-title"
+      textAlign="center"
+      sx={{ mb: { xs: 3, md: 4 } }}
+    >
       <Typography
+        id="footer-contact-title"
         component="h3"
         variant="subtitle1"
         sx={{ fontWeight: "bold", mb: 1, color: "#FF00AA" }}
@@ -166,18 +194,29 @@ function FooterContact({ sectionTitle, contactEmail, contactPhone }) {
 /* -----------------------------------------------------------------------------
    4) SUBCOMPONENTE: FooterBrand
    ------------------------------------------------------------------------------
-   - Responsabilidad: Muestra el logo + nombre de marca + redes sociales + un
-     subtítulo descriptivo.
+   - Responsabilidad: Mostrar el logo, nombre de la marca, redes sociales y un
+     subtítulo.
    - Estructura:
-       * Logo + Nombre (en la misma fila)
+       * Logo + Nombre
        * Subtítulo
-       * Íconos de redes sociales
+       * Íconos de redes sociales (map sobre socialNetworksOptions)
 ------------------------------------------------------------------------------ */
 function FooterBrand({ brandName, brandSubtitle }) {
   return (
-    <Box textAlign="center">
+    <Box
+      component="section"
+      aria-labelledby="footer-brand-title"
+      textAlign="center"
+      sx={{ mb: { xs: 3, md: 4 } }}
+    >
       {/* Logo y nombre */}
-      <Box display="flex" alignItems="center" justifyContent="center" mb={1}>
+      <Box
+        id="footer-brand-title"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        mb={1}
+      >
         <img
           src="/logo.png"
           alt="Talberos brand logo"
@@ -196,7 +235,7 @@ function FooterBrand({ brandName, brandSubtitle }) {
         {brandSubtitle}
       </Typography>
 
-      {/* Íconos de redes sociales, usando socialNetworksOptions */}
+      {/* Íconos de redes sociales */}
       <Box
         display="flex"
         flexWrap="wrap"
@@ -233,17 +272,18 @@ function FooterBrand({ brandName, brandSubtitle }) {
 /* -----------------------------------------------------------------------------
    5) COMPONENTE PRINCIPAL: FooterRefactorSOLID
    ------------------------------------------------------------------------------
-   - Responsabilidad: Orquestar todos los subcomponentes en un layout responsivo
-     y accesible, centrado en mobile.
-   - Modo Mobile: Apilado en columna, todo centrado.
-   - Modo Desktop: Grid en columnas, con cada bloque en su propia columna.
-   - Usa contenedores con paddings y separador final. Licencia MIT.
+   - Responsabilidad: Orquestar todos los subcomponentes en un layout responsivo,
+     accesible, y con una cuidada disposición visual:
+       * Versión Mobile (apilado y centrado)
+       * Versión Desktop (columnas mediante Grid)
+   - Se hace uso de MUI + Framer Motion para animaciones y estilos.
+   - Licencia: MIT
 ------------------------------------------------------------------------------ */
 export default function FooterRefactorSOLID() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  // Ejemplo de enlaces legales
+  // Enlaces de ejemplo para la sección “Más Info”
   const legalLinks = [
     { href: "/aviso-legal", label: "Aviso Legal" },
     { href: "/politica-privacidad", label: "Política de Privacidad" },
@@ -254,7 +294,7 @@ export default function FooterRefactorSOLID() {
       component="footer"
       role="contentinfo"
       sx={{
-        mt: 4,
+        mt: 6,
         backgroundColor: "#121212",
         userSelect: "none",
       }}
@@ -268,10 +308,10 @@ export default function FooterRefactorSOLID() {
         viewport={{ once: true }}
         sx={{ pt: 6, pb: 4 }}
       >
+        {/* -------------------------------------------
+            [A] Versión Mobile: apilado, todo centrado
+         ------------------------------------------- */}
         {isMobile ? (
-          /* -----------------------------------------------------------
-             [A] VERSIÓN MOBILE: TODO CENTRADO
-          ----------------------------------------------------------- */
           <Box
             display="flex"
             flexDirection="column"
@@ -293,10 +333,10 @@ export default function FooterRefactorSOLID() {
             />
           </Box>
         ) : (
-          /* -----------------------------------------------------------
-             [B] VERSIÓN ESCRITORIO: DISTRIBUCIÓN EN COLUMNAS
-          ----------------------------------------------------------- */
-          <Grid container spacing={4}>
+          /* -------------------------------------------
+              [B] Versión Desktop: Grid en columnas
+           ------------------------------------------- */
+          <Grid container spacing={6}>
             <Grid item xs={12} md={3}>
               <FooterBrand
                 brandName="Talberos"
@@ -322,14 +362,17 @@ export default function FooterRefactorSOLID() {
         {/* SEPARADOR VISUAL */}
         <Box
           sx={{
-            mt: 4,
+            mt: 6,
             mb: 2,
             borderTop: "1px solid rgba(255,255,255,0.2)",
           }}
         />
 
         {/* COPYRIGHT FINAL */}
-        <Typography variant="body2" sx={{ textAlign: "center", color: "#fff" }}>
+        <Typography
+          variant="body2"
+          sx={{ textAlign: "center", color: "#fff", lineHeight: 1.6 }}
+        >
           © 2025 Talberos. Todos los derechos reservados.
         </Typography>
       </Container>
