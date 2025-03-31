@@ -1,43 +1,63 @@
-/**
+/************************************************************************************
  * Archivo: /components/CustomTable/index.js
  * LICENSE: MIT
  *
  * DESCRIPCIÓN:
+ * ----------------------------------------------------------------------------------
  *   - Componente principal que orquesta la tabla y la barra de filtros.
- *   - Se apoya en hooks personalizados para la lógica de filtrado, sorting, selección, etc.
+ *   - Centraliza la configuración (filtrado, sorting, etc.) con el hook `useCustomTableLogic`.
  *   - Muestra la barra de filtros (FiltersToolbar) si se indica.
- *   - Renderiza `TableSection` (sub-componente) donde está la tabla real y la paginación.
+ *   - Renderiza `TableSection` (sub-componente) donde se muestra la tabla real y paginación.
+ *   - Ahora, adicionalmente, mantiene los datos en un estado local `tableData` y
+ *     persiste los cambios de edición en localStorage para que los cambios perduren,
+ *     evitando errores de hidratación en Next.js.
  *
  * PROPÓSITO:
- *   - Centralizar la configuración y lógica de la tabla (filtros, sorting, etc.)
- *     para inyectar todo a `TableSection` (que se encarga de la vista pura).
+ * ----------------------------------------------------------------------------------
+ *   - Entregar una "tabla personalizada" que ofrece filtrado global, sorting,
+ *     barra de herramientas (descarga Excel, refresh, etc.) y luego delega el
+ *     render de la tabla en `TableSection`.
  *
  * PRINCIPIOS SOLID APLICADOS:
- *   - SRP (Single Responsibility Principle): Se encarga de orquestar la lógica
- *     de la tabla y manejar la barra de filtros, sin encargarse directamente
- *     del renderizado detallado (eso es labor de `TableSection`).
- *   - OCP (Open-Closed Principle): Preparado para recibir nuevas props que
- *     extiendan la personalización, sin modificar código interno.
- *   - DIP (Dependency Inversion Principle): Recibe todo (datos, configuraciones)
- *     por props y usa hooks con dependencia invertida, facilitando la mantenibilidad.
+ * ----------------------------------------------------------------------------------
+ *   - SRP (Single Responsibility Principle):
+ *       Únicamente orquesta la lógica de la tabla (filtros, sorting, etc.),
+ *       el manejo de la barra de filtros y la persistencia en localStorage.
+ *   - OCP (Open-Closed Principle):
+ *       Soporta extensiones (props adicionales) sin modificar el código interno.
+ *   - DIP (Dependency Inversion Principle):
+ *       Todas las dependencias (datos, configuraciones, callbacks) se inyectan por props
+ *       y se comunican a través del contexto para la edición en línea.
  *
- * @version 1.0
- */
+ * Versión:
+ * ----------------------------------------------------------------------------------
+ *   - 2.1
+ *     - Se agregó lógica para evitar Hydration Error en Next.js, leyendo `localStorage`
+ *       sólo tras la hidratación, mediante `useEffect` y `isHydrated`.
+ *
+ ************************************************************************************/
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, {
+  useRef,
+  useState,
+  useEffect,
+  createContext
+} from 'react';
 import { useCustomTableLogic } from '../hooks/useCustomTableLogic';
 import { useThemeMode } from '../hooks/useThemeMode';
 import FiltersToolbar from '../toolbar/FiltersToolbar';
+import TableSection from '../TableView';
 
-// Sub-componente que renderiza la tabla y paginación sticky
-import TableSection from '../TableView'; // <- Este import apunta al archivo "TableView" de más abajo
-
-// Hook de selección de celdas (Excel-like)
-import useCellSelection from '../hooks/useCellSelection';
+/**
+ * Contexto para proveer la función de confirmación de edición de celdas.
+ * Esto nos permite guardar cambios en localStorage sin alterar las firmas
+ * de `TableView` ni de `useInlineCellEdit`.
+ */
+export const TableEditContext = createContext(null);
 
 /**
  * @typedef {Object} CustomTableProps
- * @property {Array<Object>}  data           - Datos (filas) a mostrar en la tabla.
+ * @property {Array<Object>}  data           - Datos (filas) a mostrar en la tabla, proveniente del SSR o del padre.
  * @property {Array<Object>}  columnsDef     - Definición de columnas (accessorKey, width, etc.).
  * @property {string}         [themeMode='light']
  *   Modo de tema (light o dark) que define la apariencia inicial.
@@ -69,11 +89,21 @@ import useCellSelection from '../hooks/useCellSelection';
 
 /**
  * Componente CustomTable
- * --------------------------------------------------------------------------
- * Orquesta la creación de la instancia react-table, la barra de filtros,
- * y la visualización en TableSection.
+ * ----------------------------------------------------------------------------------
+ * Orquesta la instancia de `react-table` (filtros, sorting, etc.) y la renderiza con
+ * una barra de filtros (opcional) y el subcomponente `TableSection`.
  *
- * @param {CustomTableProps} props - Props de configuración.
+ * ADICIONALMENTE:
+ * ----------------------------------------------------------------------------------
+ *   - Utiliza un estado local `tableData` con valor inicial `data` (el mismo que viene
+ *     desde SSR o del padre), para evitar discrepancias en SSR.
+ *   - Mediante `useEffect`, después de la hidratación (`isHydrated`), se lee localStorage
+ *     para sobreescribir `tableData`. Así se evitan errores de hidratación en Next.js.
+ *   - Provee la función `handleConfirmCellEdit` a través de un Contexto
+ *     (`TableEditContext.Provider`) para que el hook `useInlineCellEdit` la utilice
+ *     sin necesidad de alterar sus parámetros.
+ *
+ * @param {CustomTableProps} props - Props de configuración del componente.
  * @returns {JSX.Element}
  */
 export default function CustomTable({
@@ -93,10 +123,80 @@ export default function CustomTable({
   noResultsText = 'Sin resultados',
   autoCopyDelay = 1000,
 }) {
-  // 1) Manejo del modo de tema (claro u oscuro)
+  /************************************************************************************
+   * [A] GESTIÓN DE ESTADO LOCAL DE LA DATA SIN ROMPER SSR -> useEffect para localStorage
+   ************************************************************************************/
+  // 1) Estado base con la data que viene del SSR o del padre (para que coincida en la hidratación)
+  const [tableData, setTableData] = useState(data);
+
+  // 2) Saber si ya estamos en cliente (hidratado) -> evitamos diferencias SSR vs Cliente
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    // Marcar como "hidratado" (ya en cliente)
+    setIsHydrated(true);
+
+    // Leer de localStorage para "pisar" la data inicial si existe algo guardado
+    try {
+      const saved = localStorage.getItem('myTableData');
+      if (saved) {
+        setTableData(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.warn('Error leyendo datos de localStorage:', error);
+    }
+  }, []);
+
+  /**
+   * handleConfirmCellEdit
+   * ------------------------------------------------------------------
+   * Función que confirma la edición de una celda (rowId, colId) con un valor nuevo.
+   * Actualiza el estado local `tableData` y persiste los cambios en localStorage.
+   *
+   * @param {string|number} rowId   - ID o índice de la fila que se editó.
+   * @param {string}        colId   - ID de la columna (accessorKey).
+   * @param {string}        newValue- Valor actualizado.
+   */
+  const handleConfirmCellEdit = (rowId, colId, newValue) => {
+    // Si no estamos hidratados aún, evitar inconsistencias (opcional).
+    if (!isHydrated) return;
+
+    setTableData((prev) => {
+      // Asumiendo que rowId sea un string convertible a number (React Table a menudo usa strings).
+      const rowIndex = parseInt(rowId, 10);
+      if (isNaN(rowIndex) || rowIndex < 0 || rowIndex >= prev.length) {
+        console.warn(`handleConfirmCellEdit: rowId inválido (${rowId}). No se hace nada.`);
+        return prev;
+      }
+
+      const newData = [...prev];
+      const currentRow = newData[rowIndex];
+      newData[rowIndex] = {
+        ...currentRow,
+        [colId]: newValue,
+      };
+
+      try {
+        localStorage.setItem('myTableData', JSON.stringify(newData));
+      } catch (error) {
+        console.warn('Error guardando en localStorage:', error);
+      }
+
+      return newData;
+    });
+  };
+
+  /************************************************************************************
+   * [B] GESTIÓN DE MODO DE TEMA (CLARO/OSCURO)
+   ************************************************************************************/
   const { themeMode: internalMode, isDarkMode, toggleThemeMode } = useThemeMode(themeMode);
 
-  // 2) Hook principal con la lógica de la tabla (filtros, sorting, etc.)
+  /************************************************************************************
+   * [C] LÓGICA DE LA TABLA (filtros, sorting, etc.) vía useCustomTableLogic
+   * ------------------------------------------------------------------
+   * Se le pasa `tableData` en vez de la prop original `data`, para que la tabla lea
+   * siempre los datos actualizados y persistidos.
+   ************************************************************************************/
   const {
     table,
     columnFilters,
@@ -111,92 +211,33 @@ export default function CustomTable({
     finalColumns,
     filteredData,
   } = useCustomTableLogic({
-    data,
+    data: tableData,
     columnsDef,
     pageSize,
   });
 
-  // 3) Selección “excel-like”: definimos el containerRef y conectamos con useCellSelection
+  /************************************************************************************
+   * [D] Durante la hidratación, puedes optar por no renderizar la tabla
+   *     para garantizar coincidencia SSR/Cliente (opcional).
+   ************************************************************************************/
+  // if no deseas mostrar nada hasta hidratar, descomenta:
+  // if (!isHydrated) {
+  //   return null; // o un pequeño "Cargando..."
+  // }
+
+  /************************************************************************************
+   * [E] CONTENEDOR REF
+   * ------------------------------------------------------------------
+   * Sirve como referencia si TableSection necesita operar sobre
+   * el scrolling u otras interacciones internas.
+   ************************************************************************************/
   const containerRef = useRef(null);
 
-  // useCellSelection (sin modificar) se encarga de la lógica de arrastre, shift, flechas...
-  const {
-    selectedCells,
-    setSelectedCells,
-    anchorCell,
-    focusCell,
-    setFocusCell,
-    setAnchorCell,
-    handleKeyDownArrowSelection,
-  } = useCellSelection(
-    containerRef,
-    getCellsInfo,
-    filteredData,
-    finalColumns,
-    table
-  );
-
-  // Manejo de celdas copiadas (p. ej. celdas que se resaltan al copy)
-  const [copiedCells, setCopiedCells] = useState([]);
-
-  // 4) getCellsInfo => Mapea <td data-row data-col> a { id, colField, x, y, etc. }
-  function getCellsInfo() {
-    if (!containerRef.current) return [];
-    const cellEls = containerRef.current.querySelectorAll('[data-row][data-col]');
-    const cells = [];
-
-    // Obtenemos las filas de la tabla (paginadas, ordenadas, etc.)
-    const tableRows = table.getRowModel().rows;
-
-    cellEls.forEach((el) => {
-      const rect = el.getBoundingClientRect();
-      const rowIndexStr = el.getAttribute('data-row');
-      const cIndex = parseInt(el.getAttribute('data-col'), 10);
-
-      if (rowIndexStr == null || isNaN(cIndex) || rect.width <= 0 || rect.height <= 0) {
-        return;
-      }
-
-      const rowIndex = parseInt(rowIndexStr, 10);
-      const rowObj = tableRows[rowIndex];
-      if (!rowObj) return;
-
-      // Obtenemos el rowId real. Podría ser "0", "1", etc. o un string único.
-      const rowId = rowObj.id;
-      const colObj = table.getVisibleFlatColumns()[cIndex];
-      if (colObj) {
-        cells.push({
-          id: rowId,
-          colField: colObj.id,
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
-        });
-      }
-    });
-    return cells;
-  }
-
-  // Para mover la selección con flechas (en el contenedor)
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (!containerRef.current?.contains(document.activeElement)) return;
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        handleKeyDownArrowSelection(e);
-      }
-    };
-    containerRef.current?.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      containerRef.current?.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleKeyDownArrowSelection]);
-
-  // 5) Render final
+  /************************************************************************************
+   * [F] RENDER ENVUELTO EN TableEditContext
+   ************************************************************************************/
   return (
-    <>
-      {/* Contenedor global que controla la apariencia (light/dark) */}
+    <TableEditContext.Provider value={{ handleConfirmCellEdit }}>
       <div
         className={`customTableContainer ${isDarkMode ? 'tabla-dark' : 'tabla-light'}`}
         style={{
@@ -205,7 +246,9 @@ export default function CustomTable({
           position: 'relative',
         }}
       >
-        {/** Barra de filtros (opcional) */}
+        {/**
+         * Barra de filtros (opcional)
+         */}
         {showFiltersToolbar && (
           <div
             style={{
@@ -218,7 +261,7 @@ export default function CustomTable({
             }}
           >
             <FiltersToolbar
-              // Props específicos
+              // Props particulares de la toolbar (ej: placeholder, labels)
               {...(filtersToolbarProps || {})}
               globalFilterValue={tempGlobalFilter}
               onGlobalFilterChange={setTempGlobalFilter}
@@ -232,8 +275,7 @@ export default function CustomTable({
         )}
 
         {/**
-         * Contenedor principal para TableSection, que incluye la tabla real
-         * y la paginación sticky al final.
+         * Contenedor principal para la "sección de tabla"
          */}
         <div
           ref={containerRef}
@@ -245,7 +287,7 @@ export default function CustomTable({
           }}
         >
           <TableSection
-            // Lógica interna
+            // Lógica y data principal
             table={table}
             loading={loading}
             columnFilters={columnFilters}
@@ -264,27 +306,21 @@ export default function CustomTable({
             sorting={sorting}
             toggleSort={toggleSort}
 
-            // Props de presentación
+            // Presentación
             containerHeight={containerHeight}
             rowHeight={rowHeight}
             loadingText={loadingText}
             noResultsText={noResultsText}
             autoCopyDelay={autoCopyDelay}
 
-            // Props para selección
+            // Otros props (referencia al contenedor, etc.)
             containerRef={containerRef}
-            selectedCells={selectedCells}
-            setSelectedCells={setSelectedCells}
-            anchorCell={anchorCell}
-            focusCell={focusCell}
-            setFocusCell={setFocusCell}
-            setAnchorCell={setAnchorCell}
-            copiedCells={copiedCells}
-            setCopiedCells={setCopiedCells}
           />
         </div>
 
-        {/** Overlay de carga global (opcional) */}
+        {/**
+         * Overlay global de carga (opcional)
+         */}
         {loading && (
           <div
             style={{
@@ -323,6 +359,9 @@ export default function CustomTable({
         )}
       </div>
 
+      {/**
+       * Animación pulse para el icono de carga
+       */}
       <style jsx>{`
         @keyframes pulse {
           0% {
@@ -336,6 +375,6 @@ export default function CustomTable({
           }
         }
       `}</style>
-    </>
+    </TableEditContext.Provider>
   );
 }

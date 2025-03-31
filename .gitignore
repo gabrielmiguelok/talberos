@@ -1,34 +1,53 @@
-# Dependencias de Node.js
+###############################################################################
+# Node.js Dependencies
+###############################################################################
+node_modules/
 **/node_modules/
-**/node_modules/
-**/baileys_auth/
-# Cachés y archivos temporales
-**/*.log
-**/*.pid
-**/*.pid.lock
-**/*.seed
-**/*.tgz
-**/.DS_Store
-**/Thumbs.db
-**/.xlm
-# Directorios específicos
-**/userData/
-**/logs/
-# Directorios de compilación
-/.next/
-/out/
-/build/
-/.nuxt/
-**/.mp4
-**/.mp4*
-/.mp4*
-.mp4*
-# Otros archivos temporales y registros de depuración
-/.wwebjs_cache/
-/.wwebjs_auth/
+
+###############################################################################
+# Environment & Secrets
+###############################################################################
+.env
+.env.*
+!.env.example
+###############################################################################
+# Logs & Temp Files
+###############################################################################
+*.log
+*.pid
+*.pid.lock
+*.seed
+*.tgz
+*.cache
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-gestion.cjs*
-copy.txt*
-copy.js*
+pnpm-lock.yaml
+package-lock.json
+.lock-wscript
+.wwebjs_cache/
+.wwebjs_auth/
+.wwebjs_*
+logs/
+**/logs/
+
+###############################################################################
+# OS-Specific Files
+###############################################################################
+.DS_Store
+Thumbs.db
+
+###############################################################################
+# Build & Output Directories
+###############################################################################
+.next/
+out/
+build/
+.nuxt/
+
+###############################################################################
+# Media & Misc Files
+###############################################################################
+*.mp4
+*.mp4*
+*.xlm
