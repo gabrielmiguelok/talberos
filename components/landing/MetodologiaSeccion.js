@@ -1,137 +1,57 @@
-/**
- * @file MetodologiaSeccion.jsx
- * @description
- * Sección que describe de manera inspiracional la metodología de trabajo
- * y las etapas que se siguen para crear productos digitales robustos.
- *
- * Principios aplicados:
- *  - SOLID:
- *    * SRP (Single Responsibility Principle): Este archivo se encarga
- *      únicamente de renderizar la sección de metodología.
- *    * OCP/ISP/DIP: Evitamos dependencias rígidas e interfaces innecesarias,
- *      usando un subcomponente (StepCard) para cada tarjeta.
- *    * Sin herencias (usamos componentes funcionales en React).
- *  - Alta cohesión: La lógica de metodología está concentrada y no se mezcla
- *    con otras responsabilidades.
- *  - Auto-documentado: Comentarios claros que explican la intención de cada
- *    parte del código.
- */
-
-'use client';
+"use client";
 
 import React from 'react';
 import { Box, Typography, Grid, Paper } from '@mui/material';
 import { Slide, Zoom } from 'react-awesome-reveal';
 import Tilt from 'react-parallax-tilt';
-
-// Íconos de Material UI
-import { QueryBuilder, Build, Repeat, RocketLaunch } from '@mui/icons-material';
+import { Code, Layers, Refresh, RocketLaunch } from '@mui/icons-material';
 
 /**
- * @constant {Array<Object>} methodologySteps
- * Arreglo con la información de cada etapa del proceso.
- *  - icon: Icono representativo.
- *  - title: Título del paso.
- *  - description: Breve explicación inspiracional del paso.
+ * Pasos metodológicos adaptados al proceso de desarrollo del framework Talberos.
+ *
+ * Cada paso se representa como un artículo independiente para mejorar la semántica
+ * y la accesibilidad, permitiendo a los lectores de pantalla identificar cada sección.
  */
 const methodologySteps = [
   {
-    icon: <QueryBuilder sx={{ fontSize: 40, color: '#FF00AA' }} />,
-    title: '1. Exploración Inicial',
-    description:
-      'Escuchamos tus ideas, retos y objetivos. Descubrimos el contexto, aclaramos alcances y trazamos una visión compartida para avanzar con rumbo definido.',
+    icon: <Code sx={{ fontSize: 40, color: '#FF00AA' }} />,
+    title: 'Código Abierto y Limpio',
+    description: 'El código fuente de Talberos es totalmente abierto bajo licencia MIT. Puedes auditarlo, mejorarlo o adaptarlo según tus necesidades desde el primer momento.'
   },
   {
-    icon: <Build sx={{ fontSize: 40, color: '#FF00AA' }} />,
-    title: '2. Diseño Sólido y Cohesión',
-    description:
-      'Estructuramos una base robusta y mantenible. Cada componente cumple su función sin depender en exceso de los demás, asegurando escalabilidad y claridad.',
+    icon: <Layers sx={{ fontSize: 40, color: '#FF00AA' }} />,
+    title: 'Arquitectura Modular',
+    description: 'Diseñado siguiendo principios SOLID para máxima escalabilidad, facilidad de mantenimiento e integración fluida en cualquier proyecto React.'
   },
   {
-    icon: <Repeat sx={{ fontSize: 40, color: '#FF00AA' }} />,
-    title: '3. Desarrollo Ágil',
-    description:
-      'Creamos y validamos en ciclos iterativos. Unimos feedback constante con un desarrollo fluido, garantizando que el producto evolucione y se ajuste a la realidad.',
+    icon: <Refresh sx={{ fontSize: 40, color: '#FF00AA' }} />,
+    title: 'Actualizaciones Constantes',
+    description: 'Talberos evoluciona semana a semana con nuevas funcionalidades, mejoras de rendimiento, seguridad y compatibilidad basadas en la retroalimentación de la comunidad.'
   },
   {
     icon: <RocketLaunch sx={{ fontSize: 40, color: '#FF00AA' }} />,
-    title: '4. Despliegue y Evolución',
-    description:
-      'Llevamos la solución a producción con infraestructuras modernas. Monitoreamos, damos soporte y crecemos sin fricciones, adaptándonos a nuevas oportunidades.',
+    title: 'Listo para Producción',
+    description: 'Documentación clara, ejemplos prácticos y componentes listos para usar en producción, facilitando despliegues ágiles y escalables.'
   },
 ];
 
 /**
- * @component StepCard
- * @description
- * Subcomponente encargado de renderizar una tarjeta con un ícono,
- * un título y una descripción sobre la metodología.
+ * Componente de sección que muestra la metodología del framework Talberos.
+ * Se han incorporado mejoras de accesibilidad mediante el uso de etiquetas semánticas y atributos ARIA.
  *
- * @param {Object} props
- * @param {JSX.Element} props.icon - Ícono representativo del paso.
- * @param {string} props.title - Título que describe la etapa.
- * @param {string} props.description - Texto explicando la importancia de la etapa.
- */
-function StepCard({ icon, title, description }) {
-  return (
-    <Tilt
-      perspective={900}
-      glareEnable
-      glareMaxOpacity={0.15}
-      style={{ height: '100%' }}
-    >
-      <Paper
-        elevation={6}
-        sx={{
-          p: 3,
-          borderRadius: 3,
-          backgroundColor: '#242424',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          textAlign: 'center',
-          transition: 'transform 0.2s ease-out',
-          '&:hover': {
-            transform: 'translateY(-4px)',
-          },
-        }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-          {icon}
-        </Box>
-        <Typography
-          variant="h6"
-          fontWeight="bold"
-          gutterBottom
-          sx={{ color: '#FF00AA' }}
-        >
-          {title}
-        </Typography>
-        <Typography
-          variant="body2"
-          sx={{
-            color: '#fff',
-            lineHeight: 1.5,
-          }}
-        >
-          {description}
-        </Typography>
-      </Paper>
-    </Tilt>
-  );
-}
-
-/**
  * @component MetodologiaSeccion
- * @description
- * Sección principal que engloba toda la parte de la metodología:
- * título, subtítulo y tarjetas para cada paso. Se ubica normalmente
- * justo después del Hero en la landing page.
+ * @returns {JSX.Element} Componente que renderiza la sección de metodología.
+ *
+ * @example
+ * // Uso del componente:
+ * <MetodologiaSeccion />
  */
 export default function MetodologiaSeccion() {
   return (
     <Box
-      id="metodologia-desarrollo"
+      component="section"
+      id="metodologia-talberos"
+      aria-labelledby="metodologia-title"
       sx={{
         py: 10,
         px: { xs: 2, md: 6 },
@@ -141,45 +61,49 @@ export default function MetodologiaSeccion() {
         userSelect: 'none',
       }}
     >
-      {/* Animación de entrada para la cabecera (SLIDE) */}
       <Slide direction="up" triggerOnce>
         <Typography
+          id="metodologia-title"
           variant="h3"
+          component="h2"
           align="center"
           fontWeight="bold"
           gutterBottom
           sx={{ mb: 4, color: '#FF00AA' }}
         >
-          Metodología
+          ¿Cómo evoluciona Talberos?
         </Typography>
 
         <Typography
+          component="p"
           align="center"
-          sx={{
-            mb: 8,
-            color: '#fff',
-            maxWidth: '800px',
-            mx: 'auto',
-            lineHeight: 1.7,
-            fontSize: { xs: '1rem', md: '1.1rem' },
-          }}
+          sx={{ mb: 8, color: '#fff', maxWidth: '800px', mx: 'auto', lineHeight: 1.7 }}
         >
-          Desde la primera idea hasta el despliegue final, cada etapa está diseñada
-          para brindar una experiencia fluida y resultados sólidos. Nuestro enfoque
-          se basa en la transparencia, la retroalimentación constante y la mejora continua.
+          Nuestro framework crece a partir de una base sólida, código abierto y contribuciones continuas de la comunidad. Descubre cómo construimos y mejoramos cada aspecto semana tras semana.
         </Typography>
       </Slide>
 
-      {/* Animación de las tarjetas (ZOOM) */}
       <Zoom cascade damping={0.1} triggerOnce>
         <Grid container spacing={4}>
           {methodologySteps.map((step, index) => (
             <Grid key={index} item xs={12} sm={6} md={3}>
-              <StepCard
-                icon={step.icon}
-                title={step.title}
-                description={step.description}
-              />
+              <Tilt glareEnable glareMaxOpacity={0.15}>
+                <Paper
+                  component="article"
+                  elevation={6}
+                  sx={{ p: 3, borderRadius: 3, backgroundColor: '#242424', height: '100%', textAlign: 'center' }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                    {step.icon}
+                  </Box>
+                  <Typography variant="h6" component="h3" fontWeight="bold" sx={{ color: '#FF00AA', mb: 1 }}>
+                    {step.title}
+                  </Typography>
+                  <Typography component="p" variant="body2" sx={{ color: '#fff' }}>
+                    {step.description}
+                  </Typography>
+                </Paper>
+              </Tilt>
             </Grid>
           ))}
         </Grid>
