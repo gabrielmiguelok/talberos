@@ -35,7 +35,7 @@ import { useTheme } from '@mui/material/styles';
 import dynamic from 'next/dynamic';
 
 // Importamos el Menu en modo dinámico (ssr: false) por usar 'use client'
-const Menu = dynamic(() => import('@components/Menu'), { ssr: false });
+const Menu = dynamic(() => import('@components/landing/Menu'), { ssr: false });
 
 // ----------------------------------------------------------------
 // Constantes SEO + Texto
