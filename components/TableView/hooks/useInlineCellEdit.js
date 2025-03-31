@@ -10,7 +10,7 @@
  *
  * NOTA SOBRE PERSISTENCIA (NUEVO):
  * ----------------------------------------------------------------------------------
- *   - Sin alterar su firma pública, ahora este hook lee la función `handleConfirmCellEdit`
+ *   - Sin alterar su firma pública, este hook lee la función `handleConfirmCellEdit`
  *     desde un contexto (TableEditContext) para poder persistir los cambios en localStorage.
  *
  * USO:
@@ -41,7 +41,7 @@
  * Versión:
  * ----------------------------------------------------------------------------------
  *   - 2.0
- *     - Incorporado acceso a TableEditContext para persisitir cambios en localStorage.
+ *     - Incorporado acceso a TableEditContext para persistir cambios en localStorage.
  *
  ************************************************************************************/
 
@@ -151,6 +151,6 @@ export default function useInlineCellEdit() {
     handleDoubleClick,
     handleChange,
     handleKeyDown,
-    handleBlur
+    handleBlur,
   };
 }

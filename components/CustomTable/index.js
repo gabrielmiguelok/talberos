@@ -8,9 +8,8 @@
  *   - Centraliza la configuración (filtrado, sorting, etc.) con el hook `useCustomTableLogic`.
  *   - Muestra la barra de filtros (FiltersToolbar) si se indica.
  *   - Renderiza `TableSection` (sub-componente) donde se muestra la tabla real y paginación.
- *   - Ahora, adicionalmente, mantiene los datos en un estado local `tableData` y
- *     persiste los cambios de edición en localStorage para que los cambios perduren,
- *     evitando errores de hidratación en Next.js.
+ *   - Mantiene los datos en un estado local `tableData` y persiste los cambios de edición
+ *     en localStorage para que los cambios perduren, evitando errores de hidratación en Next.js.
  *
  * PROPÓSITO:
  * ----------------------------------------------------------------------------------
@@ -31,9 +30,10 @@
  *
  * Versión:
  * ----------------------------------------------------------------------------------
- *   - 2.1
- *     - Se agregó lógica para evitar Hydration Error en Next.js, leyendo `localStorage`
- *       sólo tras la hidratación, mediante `useEffect` y `isHydrated`.
+ *   - 2.2
+ *     - Se ajustó la lógica en `handleConfirmCellEdit` para que sólo persista cambios
+ *       si el valor realmente se editó, omitiendo valores nulos o vacíos.
+ *     - Se mantiene la autodocumentación y las buenas prácticas pedagógicas.
  *
  ************************************************************************************/
 
@@ -152,17 +152,17 @@ export default function CustomTable({
    * ------------------------------------------------------------------
    * Función que confirma la edición de una celda (rowId, colId) con un valor nuevo.
    * Actualiza el estado local `tableData` y persiste los cambios en localStorage.
+   * Importante: solo se persiste si el valor realmente cambió y no está vacío.
    *
-   * @param {string|number} rowId   - ID o índice de la fila que se editó.
-   * @param {string}        colId   - ID de la columna (accessorKey).
-   * @param {string}        newValue- Valor actualizado.
+   * @param {string|number} rowId    - ID o índice de la fila que se editó.
+   * @param {string}        colId    - ID de la columna (accessorKey).
+   * @param {string}        newValue - Valor actualizado.
    */
   const handleConfirmCellEdit = (rowId, colId, newValue) => {
     // Si no estamos hidratados aún, evitar inconsistencias (opcional).
     if (!isHydrated) return;
 
     setTableData((prev) => {
-      // Asumiendo que rowId sea un string convertible a number (React Table a menudo usa strings).
       const rowIndex = parseInt(rowId, 10);
       if (isNaN(rowIndex) || rowIndex < 0 || rowIndex >= prev.length) {
         console.warn(`handleConfirmCellEdit: rowId inválido (${rowId}). No se hace nada.`);
@@ -171,9 +171,27 @@ export default function CustomTable({
 
       const newData = [...prev];
       const currentRow = newData[rowIndex];
+      const oldValue = currentRow[colId];
+
+      // 1) Evitar guardar si el nuevo valor es nulo, vacío o igual al anterior.
+      const safeNewValue = newValue == null ? '' : newValue.trim();
+      if (!safeNewValue) {
+        console.warn(
+          `Valor nulo o vacío para la celda [${rowIndex}, ${colId}]. No se guarda.`
+        );
+        return prev;
+      }
+      if (safeNewValue === String(oldValue)) {
+        console.warn(
+          `No hay cambios en la celda [${rowIndex}, ${colId}]. No se guarda.`
+        );
+        return prev;
+      }
+
+      // 2) Actualizar en el estado local y persistir en localStorage
       newData[rowIndex] = {
         ...currentRow,
-        [colId]: newValue,
+        [colId]: safeNewValue,
       };
 
       try {
@@ -220,7 +238,6 @@ export default function CustomTable({
    * [D] Durante la hidratación, puedes optar por no renderizar la tabla
    *     para garantizar coincidencia SSR/Cliente (opcional).
    ************************************************************************************/
-  // if no deseas mostrar nada hasta hidratar, descomenta:
   // if (!isHydrated) {
   //   return null; // o un pequeño "Cargando..."
   // }
