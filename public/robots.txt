@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://synara.tech
+
+# Sitemaps
+Sitemap: https://synara.tech/sitemap.xml

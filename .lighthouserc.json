@@ -1,0 +1,14 @@
+{
+  "ci": {
+    "collect": {
+      "staticDistDir": "out",
+      "url": ["http://localhost:12000"]
+    },
+    "assert": {
+      "assertions": {}
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    }
+  }
+}

@@ -6,36 +6,21 @@
  * Archivo: /components/IconWhatsappFlotante.js
  *
  * DESCRIPCIÓN:
- *   - Proporciona un botón flotante de WhatsApp draggable y un modal para
- *     enviar mensajes directamente a un número definido.
- *   - Incluye animaciones con framer-motion y la capacidad de cambiar entre
- *     idioma español e inglés de forma dinámica.
+ *   - Proporciona un botón flotante de WhatsApp draggable (lado izquierdo).
+ *   - Incluye un modal para enviar mensajes directamente a un número definido.
+ *   - Incluye animaciones con framer-motion y la capacidad de cambiar idioma.
  *
  * OBJETIVO:
- *   - Facilitar la interacción con WhatsApp desde cualquier punto de la app,
- *     sin costos adicionales, gracias a la licencia MIT.
- *   - Ofrecer un botón adicional para acceder directamente al repositorio GitHub.
- *   - Cumplir con buenas prácticas de diseño y estructura siguiendo los
- *     principios SOLID y Clean Code.
+ *   - Facilitar la interacción con WhatsApp desde cualquier punto de la app.
+ *   - Ofrecer un botón para acceder directamente al repositorio GitHub (opcional).
+ *   - Cumplir con buenas prácticas de diseño y principios SOLID.
  *
  * PRINCIPIOS SOLID:
- *   1. Single Responsibility Principle (SRP):
- *      - Cada subcomponente (ChatModal, FloatingChatIcon, ChatWhatsAppFloat)
- *        maneja una responsabilidad específica:
- *        - ChatModal: lógica y UI del modal de chat.
- *        - FloatingChatIcon: ícono flotante draggable.
- *        - ChatWhatsAppFloat: orquestación y manejo de estado entre ícono y modal.
- *   2. Open/Closed Principle (OCP):
- *      - Puede extenderse el comportamiento (p. ej., nuevos idiomas o estilos)
- *        sin modificar el núcleo.
- *   3. Liskov Substitution Principle (LSP):
- *      - No se utiliza herencia directa; sin embargo, los componentes se
- *        integran de forma intercambiable mientras cumplan la misma interfaz (props).
- *   4. Interface Segregation Principle (ISP):
- *      - Cada componente expone solo las props necesarias (isEnglish, onClose, etc.).
- *   5. Dependency Inversion Principle (DIP):
- *      - No se depende de implementaciones concretas del usuario, sino de
- *        APIs externas (React, Material UI, etc.).
+ *   1. SRP: Cada subcomponente (ChatModal, FloatingChatIcon) maneja una tarea puntual.
+ *   2. OCP: Se puede extender para más idiomas o estilos sin modificar su núcleo.
+ *   3. LSP: Los componentes son autónomos y se integran sin afectar la interfaz.
+ *   4. ISP: Expone solo las props necesarias (isEnglish, onClose, etc.).
+ *   5. DIP: No depende de detalles concretos de usuario, sino de APIs externas.
  *
  * LICENCIA:
  *   - Este código se ofrece con fines educativos bajo licencia MIT.
@@ -62,33 +47,21 @@ import { animated, useSpring } from "@react-spring/web";
    1) CONFIGURACIONES DE ESTILO Y CONSTANTES
    ========================================================================== */
 
-/**
- * Número de teléfono de WhatsApp, con código de país.
- * @type {string}
- */
+/** Número de teléfono de WhatsApp, con código de país. */
 const PHONE_NUMBER = "5292364655702";
 
-/**
- * URL del repositorio a mostrar al usuario.
- */
+/** URL del repositorio a mostrar (opcional). */
 const REPO_URL = "https://github.com/gabrielmiguelok/talberos";
 
-/**
- * Tamaño base del ícono flotante en píxeles.
- * @type {number}
- */
+/** Tamaño base del ícono flotante (WhatsApp). */
 const ICON_SIZE = 100;
 
-/**
- * Dimensiones del Modal de chat.
- */
+/** Dimensiones del Modal de chat. */
 const MODAL_WIDTH = 360;
 const MODAL_HEIGHT_DESKTOP = "70vh";
 const MODAL_HEIGHT_MOBILE = "90vh";
 
-/**
- * Paleta de colores principal, basada en tonos rosa/fucsia y fondos oscuros.
- */
+/** Paleta de colores principal. */
 const HEADER_BG_COLOR = "#FF00AA";
 const HEADER_TEXT_COLOR = "#FFFFFF";
 const HEADER_BORDER_COLOR = "#FF44C4";
@@ -102,57 +75,39 @@ const FOOTER_BORDER_COLOR = "#FF44C4";
 const INPUT_BG_COLOR = "#242424";
 const INPUT_TEXT_COLOR = "#FFFFFF";
 
-/**
- * Colores para el botón de envío.
- */
+/** Colores para el botón de envío. */
 const SEND_BUTTON_COLOR = "#FF00AA";
 const SEND_BUTTON_HOVER_BG = "#FF44C4";
 
-/**
- * Umbral de movimiento para detectar "tap" en lugar de un drag real.
- * @type {number}
- */
+/** Umbral de movimiento para detectar "tap". */
 const TAP_THRESHOLD = 5;
 
+/** Margen para ubicar el ícono flotante en pantalla. */
+const MARGIN_MOBILE = 10;
+const MARGIN_DESKTOP = 20;
+
 /* ==========================================================================
-   2) COMPONENTE ChatModal
+   2) COMPONENTE ChatModal (uso interno)
    ========================================================================== */
-
-/**
- * @typedef {Object} ChatModalProps
- * @property {Function} onClose - Función para cerrar el modal.
- * @property {boolean} isEnglish - Indica si se muestra en inglés o en español.
- */
-
-/**
- * Modal de chat que muestra un mensaje de bienvenida y permite enviar textos
- * personalizados a través de WhatsApp. Además, incluye un botón para ver
- * el repositorio en GitHub.
- *
- * @param {ChatModalProps} props
- * @returns {JSX.Element}
- */
 function ChatModal({ onClose, isEnglish }) {
   // Mensajes y placeholders de texto multilenguaje
   const WELCOME_MESSAGE = isEnglish
     ? "Hello! Welcome to this MIT-licensed open source repository. Feel free to explore and contribute."
     : "¡Hola! Este repositorio open source con licencia MIT te da la bienvenida. Explora y contribuye libremente.";
 
-  // Botón para abrir el repositorio en GitHub
   const REPO_BUTTON_LABEL = isEnglish
     ? "I want to see the REPO"
     : "Quiero ver el REPO";
 
-  // Placeholder del input
   const PLACEHOLDER_TEXT = isEnglish
     ? "Type your message..."
     : "Escribe tu mensaje...";
 
-  // Texto escrito por el usuario
+  // Estado para el contenido del input
   const [userMessage, setUserMessage] = useState("");
   const messagesEndRef = useRef(null);
 
-  // Efecto para auto-hacer scroll al final cuando cambia el mensaje
+  // Autoscroll cuando cambia el mensaje (ej. animación de chat)
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -160,7 +115,7 @@ function ChatModal({ onClose, isEnglish }) {
   }, [userMessage]);
 
   /**
-   * Maneja el envío de mensajes a WhatsApp.
+   * Envía el mensaje a WhatsApp (abriendo enlace con api.whatsapp.com).
    */
   const handleSend = () => {
     try {
@@ -169,9 +124,7 @@ function ChatModal({ onClose, isEnglish }) {
       }
       const finalMsg = userMessage.trim();
       if (finalMsg.length > 0) {
-        const url = `https://api.whatsapp.com/send?phone=${PHONE_NUMBER}&text=${encodeURIComponent(
-          finalMsg
-        )}`;
+        const url = `https://api.whatsapp.com/send?phone=${PHONE_NUMBER}&text=${encodeURIComponent(finalMsg)}`;
         window.open(url, "_blank");
       }
     } catch (error) {
@@ -181,7 +134,6 @@ function ChatModal({ onClose, isEnglish }) {
 
   /**
    * Permite enviar el mensaje al presionar Enter.
-   * @param {React.KeyboardEvent} e - Evento del teclado.
    */
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
@@ -191,7 +143,7 @@ function ChatModal({ onClose, isEnglish }) {
   };
 
   /**
-   * Redirige al usuario al repositorio en GitHub.
+   * Abre el repositorio en GitHub en otra pestaña.
    */
   const handleOpenRepo = () => {
     try {
@@ -222,7 +174,7 @@ function ChatModal({ onClose, isEnglish }) {
         flexDirection: "column"
       }}
     >
-      {/** Encabezado del modal */}
+      {/* Encabezado del modal */}
       <AppBar
         position="static"
         sx={{
@@ -249,7 +201,7 @@ function ChatModal({ onClose, isEnglish }) {
         </Toolbar>
       </AppBar>
 
-      {/** Cuerpo del modal */}
+      {/* Cuerpo del modal */}
       <Box
         sx={{
           flex: 1,
@@ -261,7 +213,7 @@ function ChatModal({ onClose, isEnglish }) {
           overflowY: "auto"
         }}
       >
-        {/** Mensaje de bienvenida */}
+        {/* Mensaje de bienvenida */}
         <Box
           sx={{
             backgroundColor: "#2E2E2E",
@@ -276,7 +228,7 @@ function ChatModal({ onClose, isEnglish }) {
           {WELCOME_MESSAGE}
         </Box>
 
-        {/** Botón para abrir el repositorio en GitHub */}
+        {/* Botón para abrir el repositorio (opcional) */}
         <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
           <Button
             variant="contained"
@@ -297,7 +249,7 @@ function ChatModal({ onClose, isEnglish }) {
         <div ref={messagesEndRef} />
       </Box>
 
-      {/** Footer: campo de texto + botón de enviar */}
+      {/* Footer: input + botón enviar */}
       <Box
         sx={{
           backgroundColor: FOOTER_BG_COLOR,
@@ -344,35 +296,24 @@ function ChatModal({ onClose, isEnglish }) {
 }
 
 /* ==========================================================================
-   3) COMPONENTE FloatingChatIcon
+   3) COMPONENTE FloatingChatIcon interno (WhatsApp)
    ========================================================================== */
-
-/**
- * @typedef {Object} FloatingChatIconProps
- * @property {Function} onClick - Se ejecuta cuando el ícono es "tocado" (tap) o clicado.
- */
-
 /**
  * Ícono flotante de WhatsApp que permite arrastrar y soltar (drag & drop).
- * Al "soltar" sin desplazarlo significativamente, dispara `onClick`.
- *
- * @param {FloatingChatIconProps} props
- * @returns {JSX.Element}
+ * Se muestra por defecto en la esquina inferior izquierda.
  */
 function FloatingChatIcon({ onClick }) {
   const iconRef = useRef(null);
 
-  // Tamaño de la ventana y dimensión real del ícono
+  // Tamaño de la ventana
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  // Dimensiones del ícono calculadas en runtime
   const [iconRect, setIconRect] = useState({ width: ICON_SIZE, height: ICON_SIZE });
-
-  // Manejo de posición con react-spring
+  // Posición con react-spring
   const [style, api] = useSpring(() => ({ x: 0, y: 0 }));
-
-  // Controla si se está arrastrando o no
   const [isSelected, setIsSelected] = useState(false);
 
-  // Actualiza las dimensiones de la ventana
+  // Actualiza dimensiones de la ventana
   useEffect(() => {
     function updateSize() {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight });
@@ -382,7 +323,9 @@ function FloatingChatIcon({ onClick }) {
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  // Calcula la posición inicial del ícono usando LayoutEffect
+  /**
+   * Calcula posición inicial en la esquina inferior izquierda.
+   */
   useLayoutEffect(() => {
     if (iconRef.current) {
       requestAnimationFrame(() => {
@@ -392,21 +335,23 @@ function FloatingChatIcon({ onClick }) {
         setIconRect({ width: measuredWidth, height: measuredHeight });
 
         const isMobile = window.innerWidth <= 768;
-        const margin = isMobile ? 10 : 20;
+        const margin = isMobile ? MARGIN_MOBILE : MARGIN_DESKTOP;
 
-        const defaultX = margin;
+        // Posición inicial a la izquierda
+        let defaultX = margin;
         let defaultY = window.innerHeight - measuredHeight - margin;
-        if (defaultY < 10) {
-          defaultY = 10;
+
+        // Evita que quede fuera de la pantalla
+        if (defaultY < margin) {
+          defaultY = margin;
         }
 
-        // Posición inicial del ícono
         api.start({ x: defaultX, y: defaultY });
       });
     }
   }, [api]);
 
-  // Cierra la selección si se hace clic fuera del ícono
+  // Cierra la selección si se hace click/touch fuera del ícono
   useEffect(() => {
     function handleClickOutside(e) {
       if (isSelected && iconRef.current && !iconRef.current.contains(e.target)) {
@@ -423,7 +368,7 @@ function FloatingChatIcon({ onClick }) {
 
   /**
    * Configura la lógica de arrastre con use-gesture.
-   * Si el movimiento total es menor a TAP_THRESHOLD, se considera un "tap".
+   * Detecta "tap" si el desplazamiento es menor a TAP_THRESHOLD.
    */
   const bind = useDrag(
     ({ offset: [ox, oy], first, last, movement: [mx, my] }) => {
@@ -433,13 +378,13 @@ function FloatingChatIcon({ onClick }) {
       const { width: wWidth, height: wHeight } = windowSize;
       const { width: iWidth, height: iHeight } = iconRect;
 
-      // Limita la posición para no salir de pantalla
+      // Limita la posición a los bordes
       const clampedX = Math.min(Math.max(ox, 0), wWidth - iWidth);
       const clampedY = Math.min(Math.max(oy, 0), wHeight - iHeight);
 
       api.start({ x: clampedX, y: clampedY });
 
-      // Detecta "tap"
+      // Detecta "tap" (poco movimiento)
       if (last) {
         setIsSelected(false);
         if (Math.hypot(mx, my) < TAP_THRESHOLD) {
@@ -502,25 +447,14 @@ function FloatingChatIcon({ onClick }) {
    ========================================================================== */
 
 /**
- * @typedef {Object} ChatWhatsAppFloatProps
- * @property {boolean} [isEnglish=false] - Determina el idioma (Español/Inglés) del modal.
- */
-
-/**
  * Componente contenedor que orquesta el ícono flotante de WhatsApp y el modal.
- * - Muestra el ícono flotante. Al hacer clic (o tap) en él, se abre el modal.
- * - Cuando el modal está abierto, oculta el ícono flotante.
- *
- * @param {ChatWhatsAppFloatProps} props
- * @returns {JSX.Element}
+ * - Muestra el ícono flotante en la esquina inferior izquierda.
+ * - Al hacer tap/click en él, se abre el modal; oculta el ícono mientras tanto.
+ * - Cambia de idioma con la prop isEnglish (opcional).
  */
 export function ChatWhatsAppFloat({ isEnglish = false }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  /**
-   * Alterna la visibilidad del modal y registra eventos en dataLayer
-   * (para Google Tag Manager u otros sistemas de analítica).
-   */
   const handleToggleChat = () => {
     try {
       if (typeof window !== "undefined" && window.dataLayer) {
@@ -536,7 +470,7 @@ export function ChatWhatsAppFloat({ isEnglish = false }) {
 
   return (
     <>
-      {/* Ícono flotante arrastrable, se esconde si el modal está abierto */}
+      {/* Ícono flotante arrastrable (WhatsApp), se oculta si el modal está abierto */}
       {!isOpen && <FloatingChatIcon onClick={handleToggleChat} />}
 
       {/* Modal de chat; se muestra solo si isOpen es true */}
