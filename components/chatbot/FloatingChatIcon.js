@@ -8,10 +8,17 @@
  * DESCRIPCIÓN:
  *   - Ícono flotante (lado derecho) que activa el chat al hacer clic y se puede arrastrar.
  *   - Usa use-gesture y react-spring para la animación y el drag.
+ *   - Cuando el modal (chat) se abre, se oculta el ícono; al cerrar el modal,
+ *     se muestra de nuevo (basado en un evento global).
  *
  * PRINCIPIOS SOLID:
- *   - SRP: Dedicado únicamente a mostrar/arrastrar el ícono flotante.
- *   - DIP: Expone onClick para que la lógica del chat decida cómo manejar el evento.
+ *   - SRP (Single Responsibility Principle):
+ *       * Solo se encarga de mostrar y arrastrar el ícono flotante y
+ *         escuchar un evento global para volver a mostrarse.
+ *   - DIP (Dependency Inversion Principle):
+ *       * Expone onClick para que la lógica externa abra el chat.
+ *       * No se acopla directamente a cómo se cierra el modal,
+ *         solo escucha un evento global para reaparecer.
  *
  * -----------------------------------------------------------------------------
  */
@@ -73,6 +80,20 @@ export default function FloatingChatIcon({ onClick }) {
 
   // Posición (x, y) con react-spring
   const [style, api] = useSpring(() => ({ x: 0, y: 0 }));
+
+  /**
+   * Escucha evento global "show-floating-icon" para volver
+   * a mostrar el ícono cuando el modal se cierra.
+   */
+  useEffect(() => {
+    const handleShowIcon = () => {
+      setIsHidden(false);
+    };
+    window.addEventListener('show-floating-icon', handleShowIcon);
+    return () => {
+      window.removeEventListener('show-floating-icon', handleShowIcon);
+    };
+  }, []);
 
   // Manejo de tamaño de ventana
   useEffect(() => {
@@ -150,7 +171,9 @@ export default function FloatingChatIcon({ onClick }) {
         const elapsed = Date.now() - startTime;
         const distance = Math.hypot(mx, my);
         if (distance < TAP_THRESHOLD && elapsed < TAP_TIME_THRESHOLD) {
+          // Al abrir el modal, ocultamos el ícono.
           onClick?.();
+          setIsHidden(true);
         }
       }
     },

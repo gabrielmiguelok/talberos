@@ -6,15 +6,18 @@
  * Archivo: /components/chatbot/ChatModal.js
  *
  * DESCRIPCIÓN:
- *   - Ventana modal del chatbot para Talberos, con estilo oscuro y detalles en fucsia.
+ *   - Ventana modal del chatbot para Talberos (Chalberos), con estilo oscuro y detalles en fucsia.
  *   - Incluye:
  *       * AppBar oscuro para el encabezado.
  *       * Área de mensajes compactos y con alto contraste.
  *       * TextField y botón fucsia para enviar.
+ *   - Al cerrarse, emite un evento global para hacer reaparecer el ícono flotante.
  *
  * PRINCIPIOS SOLID:
- *   - SRP: Controla la interfaz visual del chat y su ciclo de vida (apertura/cierre).
- *   - DIP: Se apoya en ChatFlowManager para la lógica de estados, sin acoplarse a ella.
+ *   - SRP: Controla la interfaz visual del chat, su ciclo de vida (apertura/cierre)
+ *          y despacha un evento para indicar que se cerró.
+ *   - DIP: Se apoya en ChatFlowManager para la lógica de estados,
+ *          sin acoplarse a implementaciones concretas del ícono flotante.
  * -----------------------------------------------------------------------------
  */
 
@@ -134,6 +137,15 @@ export default function ChatModal({ onClose }) {
     return true;
   };
 
+  /**
+   * Dispara evento global para que el ícono flotante se muestre de nuevo.
+   * Llamamos onClose() para que el padre o quien use este modal lo cierre.
+   */
+  const handleCloseModal = () => {
+    onClose?.();
+    window.dispatchEvent(new Event('show-floating-icon'));
+  };
+
   return (
     <Box
       sx={{
@@ -178,7 +190,7 @@ export default function ChatModal({ onClose }) {
               Chalberos Open Source !
             </Typography>
           </Box>
-          <IconButton onClick={onClose} sx={{ color: HEADER_TEXT_COLOR }}>
+          <IconButton onClick={handleCloseModal} sx={{ color: HEADER_TEXT_COLOR }}>
             <CloseIcon sx={{ fontSize: 20 }} />
           </IconButton>
         </Toolbar>
