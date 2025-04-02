@@ -1,34 +1,44 @@
 /************************************************************************************
  * Archivo: /styles/globals.css
- * LICENSE: MIT
+ * LICENCIA: MIT
  *
- * PROYECTO: Tabla Personalizable (Modo Claro / Oscuro)
+ * PROYECTO: Talberos - Framework con Modo Oscuro como predeterminado
  *
  * DESCRIPCIÓN:
- *   Esta hoja de estilos global se centra en:
- *     1. Un reset básico para normalizar la apariencia en todos los navegadores.
- *     2. Variables de CSS (modo claro y modo oscuro "local") para colores, fuentes
- *        y elementos clave (navbar, tablas, fondos, etc.).
- *     3. Estilos base para BODY, enlaces, botones.
- *     4. Estilos específicos para la tabla (celdas, encabezados, resizing).
- *     5. Efectos visuales de selección y copiado de celdas en la tabla.
- *     6. Configuración responsiva para adaptarse a distintos anchos de pantalla.
+ *   1. Reset básico para normalizar estilos en navegadores.
+ *   2. Variables CSS (modo oscuro por defecto en :root) con colores, fuentes y
+ *      otros aspectos clave (navbar, tablas, fondos, etc.).
+ *   3. Estilos base para <body>, enlaces y botones.
+ *   4. Clase ".tabla-light" para forzar modo claro de forma local.
+ *   5. Ajustes de tabla (celdas, encabezados, resizing).
+ *   6. Efectos de selección y copiado en la tabla.
+ *   7. Responsividad para distintos anchos de pantalla (mobile-first).
  *
- * FINALIDAD EDUCATIVA:
- *   - Seguir un enfoque de organización y autodocumentación que sea claro
- *     para nuevos desarrolladores.
- *   - Cumplir principios de diseño SOLID a nivel de estilos, manteniendo
- *     bajo acoplamiento y alta cohesión (modo claro y oscuro localizados).
+ * OBJETIVO:
+ *   - Mantener modo oscuro de forma predeterminada, alineado con la
+ *     preferencia del usuario.
+ *   - Incluir una clase auxiliar (tabla-light) si se requiere un área
+ *     en modo claro.
+ *   - Fomentar la accesibilidad (contrastes) y la mantenibilidad del
+ *     código CSS con comentarios claros.
  *
- * @version 2.0
+ * PRINCIPIOS SOLID (aplicados a nivel de organización de estilos):
+ *   - SRP: Cada bloque CSS se documenta y agrupa según su propósito.
+ *   - OCP: Puede extenderse con nuevas clases o variables para otros modos.
+ *   - LSP: La estructura de variables se puede reemplazar sin romper la base.
+ *   - ISP: Solo contiene estilos generales y no impone dependencias
+ *          innecesarias en componentes.
+ *   - DIP: Se apoya en abstracciones (variables) para colores/fuentes,
+ *          evitando valores “hardcodeados”.
+ *
+ * @version 3.0
  ************************************************************************************/
 
 /* ------------------------------------------------------------------
    1) RESET BÁSICO
    ------------------------------------------------------------------
-   Elimina márgenes, rellenos y fuerza 'box-sizing: border-box'
-   para todos los elementos. De esta manera, se parte de una base
-   uniforme para todos los navegadores.
+   Elimina márgenes, rellenos y define box-sizing: border-box en
+   todos los elementos, para una base uniforme en todos los navegadores.
 --------------------------------------------------------------------*/
 *,
 *::before,
@@ -39,26 +49,26 @@
 }
 
 /* ------------------------------------------------------------------
-   2) VARIABLES CSS PARA MODO CLARO (EN :root)
+   2) VARIABLES CSS (MODO OSCURO COMO DEFAULT) EN :root
    ------------------------------------------------------------------
-   Definimos un conjunto de variables base (color, tipografía, fondos)
-   que representan el modo claro. Se heredan en todo el documento,
-   excepto donde se aplique el modo oscuro de forma local.
+   Se asume el modo oscuro por defecto. Si deseas forzar modo claro
+   en una sección, utiliza la clase .tabla-light (definida más adelante).
 --------------------------------------------------------------------*/
 :root {
+  color-scheme: dark; /* Indica a los navegadores la preferencia oscura */
   --font-family-main: 'Work Sans', Arial, sans-serif;
 
-  /* Paleta (claro) */
+  /* Paleta - Modo Oscuro por defecto */
+  --color-bg: #1F1F1F;       /* Fondo general */
+  --color-bg-paper: #2A2A2A; /* Tarjetas/paneles en modo oscuro */
+  --color-text: #FFFFFF;     /* Texto en alto contraste */
+  --color-divider: #444444;
+
+  /* Colores primarios y secundarios (pueden ajustarse según branding) */
   --color-primary: #2D9CDB;
   --color-primary-light: #56CCF2;
   --color-secondary: #27AE60;
   --color-secondary-light: #6FCF97;
-
-  /* Fondos y texto */
-  --color-bg: #FFFFFF;         /* fondo general */
-  --color-bg-paper: #FFFFFF;   /* tarjetas, paneles */
-  --color-text: #333333;       /* color de texto principal */
-  --color-divider: #dddddd;    /* color para bordes y divisores */
 
   /* Estados / Mensajes */
   --color-info: #2D9CDB;
@@ -69,26 +79,26 @@
   /* Tipografía base */
   --font-size-base: 16px;
 
-  /* Navbar, barra de filtros y tabla */
-  --navbar-bg: linear-gradient(135deg, #1e88e5 0%, #64b5f6 100%);
-  --navbar-text: #ffffff;
-  --navbar-button-bg: #64b5f6;
+  /* Navbar y barra de filtros (modo oscuro) */
+  --navbar-bg: linear-gradient(135deg, #333 0%, #444 100%);
+  --navbar-text: #FFFFFF;
+  --navbar-button-bg: #8E8E8E;
   --navbar-hover-bg: rgba(255, 255, 255, 0.2);
-  --navbar-elevation: 0px 2px 8px rgba(0, 0, 0, 0.4);
+  --navbar-elevation: 0px 2px 8px rgba(0, 0, 0, 0.7);
 
-  --color-filterbar-bg: linear-gradient(to right, #1e88e5, #ffffff);
+  --color-filterbar-bg: linear-gradient(to right, #121212, #b20076);
 
-  /* Aspecto de la tabla (modo claro) */
-  --color-table-index-colgroup: #1e88e514;    /* colgroup para primera columna */
-  --color-table-index-header:   rgba(30,136,229,0.25); /* encabezado 1ª col */
-  --color-table-index-body:     rgba(30,136,229,0.10); /* celdas 1ª col */
-  --color-table-header:         rgba(30,136,229,0.15); /* el resto de los headers */
+  /* Aspecto general de tabla en modo oscuro */
+  --color-table-index-colgroup: #b2007626; /* ~15% opacidad */
+  --color-table-index-header:   #b2007659; /* ~35% opacidad */
+  --color-table-index-body:     #b2007633; /* ~20% opacidad */
+  --color-table-header:         #b2007640; /* ~25% opacidad */
 }
 
 /* ------------------------------------------------------------------
-   3) ESTILOS BASE DEL DOCUMENTO (BODY, TIPOGRAFÍA)
+   3) ESTILOS BASE DEL DOCUMENTO (HTML, BODY)
    ------------------------------------------------------------------
-   Se aplican variables por defecto (modo claro), background, etc.
+   Se utiliza el modo oscuro por defecto (variables en :root).
 --------------------------------------------------------------------*/
 html, body {
   font-family: var(--font-family-main);
@@ -102,10 +112,9 @@ html, body {
 }
 
 /* ------------------------------------------------------------------
-   4) ENLACES
+   4) ENLACES (LINKS)
    ------------------------------------------------------------------
-   Normalmente se quita el subrayado por defecto de los enlaces y
-   se añade solo en hover para claridad.
+   Quitar subrayado por defecto, añadirlo en hover para claridad.
 --------------------------------------------------------------------*/
 a {
   color: var(--color-primary);
@@ -119,7 +128,7 @@ a:hover {
    5) BOTONES BÁSICOS
    ------------------------------------------------------------------
    Quita estilos por defecto y añade un efecto hover/active
-   usando pseudo-elementos.
+   con pseudo-elementos para mayor accesibilidad visual.
 --------------------------------------------------------------------*/
 button {
   font-family: inherit;
@@ -130,6 +139,7 @@ button {
   margin: 0;
   position: relative;
   overflow: hidden;
+  color: var(--color-text); /* hereda color de texto */
 }
 button:hover::after {
   content: "";
@@ -148,63 +158,115 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Quita contorno de enfoque para accesibilidad visual
-   (dependerá de la política del proyecto) */
+/* Mejor práctica para accesibilidad:
+   Mantenemos un estilo de enfoque (focus) visible.
+   Si deseas eliminarlo, hazlo bajo tu responsabilidad. */
 :focus {
-  outline: none !important;
-  box-shadow: none !important;
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
 }
 
 /* ------------------------------------------------------------------
-   6) MODO OSCURO LOCAL (CLASE .tabla-dark)
+   6) CLASE .tabla-light (MODO CLARO LOCAL)
    ------------------------------------------------------------------
-   Esta clase se aplica a un contenedor específico (por ejemplo,
-   en <div className="tabla-dark">) para forzar MODO OSCURO en su interior.
+   Si deseas forzar modo claro en un contenedor específico,
+   aplica esta clase en ese nodo (<div class="tabla-light">).
+   Sobrescribe variables del modo oscuro predeterminado.
 --------------------------------------------------------------------*/
-.tabla-dark {
-  color-scheme: dark;
+.tabla-light {
+  color-scheme: light;
 
-  /* Sobrescribimos las variables base con los valores oscuros */
-  --color-bg: #121212;
-  --color-bg-paper: #1F1F1F;
-  --color-text: #FFFFFF;
-  --color-divider: #444444;
+  --color-bg: #FFFFFF;
+  --color-bg-paper: #FFFFFF;
+  --color-text: #333333;
+  --color-divider: #DDDDDD;
 
-  /* Ajustes de Navbar, barra de filtros, etc. en modo oscuro */
-  --navbar-bg: linear-gradient(135deg, #333 0%, #444 100%);
-  --navbar-text: #ffffff;
-  --navbar-button-bg: #8e8e8e;
+  --navbar-bg: linear-gradient(135deg, #1e88e5 0%, #64b5f6 100%);
+  --navbar-text: #FFFFFF;
+  --navbar-button-bg: #64b5f6;
   --navbar-hover-bg: rgba(255, 255, 255, 0.2);
-  --navbar-elevation: 0px 2px 8px rgba(0, 0, 0, 0.7);
+  --navbar-elevation: 0px 2px 8px rgba(0, 0, 0, 0.4);
 
-  --color-filterbar-bg: linear-gradient(to right, #121212, #b20076);
+  --color-filterbar-bg: linear-gradient(to right, #1e88e5, #ffffff);
 
-  /* Aspecto de la tabla en modo oscuro */
-  --color-table-index-colgroup: #b2007626; /* ~15% opacidad */
-  --color-table-index-header:   #b2007659; /* ~35% opacidad */
-  --color-table-index-body:     #b2007633; /* ~20% opacidad */
-  --color-table-header:         #b2007640; /* ~25% opacidad */
-  --color-table-row-highlight:  #444444;
-
-  background-color: var(--color-bg);
-  color: var(--color-text);
+  /* Apariencia de tabla en modo claro */
+  --color-table-index-colgroup: #1e88e514;
+  --color-table-index-header: rgba(30,136,229,0.25);
+  --color-table-index-body: rgba(30,136,229,0.10);
+  --color-table-header: rgba(30,136,229,0.15);
 }
 
-/* Ajuste para .custom-table dentro de .tabla-dark */
-.tabla-dark .custom-table {
+/* Ajustes para tablas dentro de .tabla-light */
+.tabla-light .custom-table {
   background-color: var(--color-bg-paper);
 }
-.tabla-dark .custom-th,
-.tabla-dark .custom-td {
+.tabla-light .custom-th,
+.tabla-light .custom-td {
   border: 1px solid var(--color-divider);
   background-color: var(--color-bg-paper);
   color: var(--color-text);
 }
 
 /* ------------------------------------------------------------------
-   7) EFECTOS VISUALES DE TABLA (SELECCIÓN, COPIADO)
+   7) ESTILOS BASE DE TABLAS PERSONALIZADAS (.custom-table)
    ------------------------------------------------------------------
-   Clases utilizadas para resaltar celdas seleccionadas o copiadas.
+   Estructura básica de la tabla, celdas, encabezados, etc.
+--------------------------------------------------------------------*/
+.custom-table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  background-color: var(--color-bg-paper);
+}
+
+.custom-th,
+.custom-td {
+  border: 1px solid var(--color-divider);
+  padding: 0px;
+  position: relative;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text);
+}
+
+/* Encabezados con iconos, filtrado, etc. */
+.column-header-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.column-header-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.column-header-actions {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Manija de redimensionar columnas */
+.resize-handle {
+  cursor: col-resize;
+  width: 3px;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: transparent;
+}
+.resize-handle:hover {
+  background: #bbb;
+}
+
+/* ------------------------------------------------------------------
+   8) EFECTOS VISUALES: SELECCIÓN Y COPIADO DE CELDAS
+   ------------------------------------------------------------------
+   Clases para resaltar celdas seleccionadas o copiadas.
 --------------------------------------------------------------------*/
 /* Borde alrededor de celdas seleccionadas */
 .selected-cell-rect {
@@ -228,70 +290,12 @@ button:disabled {
   animation: luminous 0.8s ease-out forwards;
 }
 
-/* ----------------------------------------------------------------------
-   8) ESTILOS BASE DE LA TABLA (CLASE .custom-table)
-   ----------------------------------------------------------------------
-   Aquí se define la apariencia principal de las tablas personalizadas.
----------------------------------------------------------------------- */
-.custom-table {
-  border-collapse: collapse;
-  width: 100%;
-  table-layout: fixed;
-  background-color: var(--color-bg-paper);
-}
-
-.custom-th,
-.custom-td {
-  border: 1px solid var(--color-divider);
-  padding: 0px;
-  position: relative;
-  font-size: 0.7rem;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--color-text);
-}
-
-/* Cabecera de columna: iconos e interacciones */
-.column-header-content {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-.column-header-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-}
-.column-header-actions {
-  display: inline-flex;
-  align-items: center;
-}
-
-/* Manija de redimensionar columna (arrastre) */
-.resize-handle {
-  cursor: col-resize;
-  width: 3px;
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  background: transparent;
-}
-.resize-handle:hover {
-  background: #bbb;
-}
-
-/* ----------------------------------------------------------------------
-   9) CONFIGURACIONES ADICIONALES DE RESPONSIVIDAD
-   ----------------------------------------------------------------------
-   Ajustes de fuente y/o tabla según varios anchos de pantalla
-   (mobile-first con breakpoints decrecientes en px).
----------------------------------------------------------------------- */
-
-/* MONITORES GRANDES / Desktop standard (aprox. >=1200px) */
+/* ------------------------------------------------------------------
+   9) RESPONSIVIDAD (MEDIA QUERIES)
+   ------------------------------------------------------------------
+   Ajustes de tamaños de fuente según el ancho de pantalla.
+   Mobile-first, reduciendo el font-size en pantallas más pequeñas.
+--------------------------------------------------------------------*/
 @media (max-width: 1200px) {
   body {
     font-size: 15px;
@@ -302,7 +306,6 @@ button:disabled {
   }
 }
 
-/* TABLETS HORIZONTALES / pantallas medianas (approx 992px) */
 @media (max-width: 992px) {
   body {
     font-size: 14.5px;
@@ -313,7 +316,6 @@ button:disabled {
   }
 }
 
-/* TABLETS VERTICALES / pantallas medianas-pequeñas (approx 768px) */
 @media (max-width: 768px) {
   body {
     font-size: 14px;
@@ -324,7 +326,6 @@ button:disabled {
   }
 }
 
-/* SMARTPHONES GRANDES (approx 480px) */
 @media (max-width: 480px) {
   body {
     font-size: 13px;
@@ -335,7 +336,6 @@ button:disabled {
   }
 }
 
-/* SMARTPHONES MUY PEQUEÑOS (approx 320px) */
 @media (max-width: 320px) {
   body {
     font-size: 12px;

@@ -2,22 +2,16 @@
  * FILE: ./pages/blog/[article].js
  * LICENSE: MIT
  *
- * DESCRIPTION:
- *   - Página dinámica para renderizar artículos .md o .mdx desde la carpeta /blogs en Talberos.
- *   - Estilos pensados para modo oscuro, con tipografías agradables y resaltado de código.
- *   - Incorpora el componente Menu para la barra de navegación.
- *   - Soporta SEO a través de metadatos, OG, Twitter, JSON-LD (BlogPosting).
- *   - Utiliza SSR (Static Site Generation) con getStaticPaths y getStaticProps para
- *     prerenderizar cada artículo.
- *   - Aplica los principios SOLID y Clean Code:
- *       * SRP: Maneja solo la carga y visualización de un artículo individual.
- *       * OCP: Se puede ampliar funcionalidad sin modificar su base.
- *       * LSP: Se pueden sustituir partes (ej. parseo MDX) sin romper la interfaz.
- *       * ISP: El componente expone props claras y específicas (frontMatter, mdxSource, etc.).
- *       * DIP: El origen de datos (archivos locales) está desacoplado, se inyecta vía SSR.
+ * DESCRIPCIÓN:
+ *   - Página dinámica para renderizar artículos .md o .mdx desde /blogs en Talberos.
+ *   - Si el artículo no define una imagen en frontmatter, se usan fallbacks (preview.webp, .png, .jpg).
+ *   - Incorpora SEO avanzado (Open Graph, Twitter), con múltiples formatos de imagen para
+ *     maximizar compatibilidad.
+ *   - Aplica SSG (getStaticPaths & getStaticProps) para prerenderizar cada artículo.
+ *   - Usa next/image para optimizar la imagen principal.
+ *   - Mantiene principios SOLID y Clean Code.
  ************************************************************************************************/
 
-/** ------------------------- IMPORTS & DEPENDENCIES ------------------------------------------- */
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import fs from 'fs/promises';
@@ -33,19 +27,18 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import remarkHtml from 'remark-html';
+import Image from 'next/image';
 
 /** ------------------------- CONSTANTES DE CONFIGURACIÓN -------------------------------------- */
 
-/**
- * Rutas y nombres de archivo
- */
-const BLOG_FOLDER_NAME = 'blogs'; // Carpeta donde residen los .md y .mdx
+// Carpeta donde residen los .md y .mdx
+const BLOG_FOLDER_NAME = 'blogs';
+
+// Extensiones posibles
 const FILE_EXTENSION_MD = '.md';
 const FILE_EXTENSION_MDX = '.mdx';
 
-/**
- * Estilos y opciones de diseño
- */
+// Estilos / diseño
 const ARTICLE_CONTAINER_MAX_WIDTH = 1200;
 const ARTICLE_CONTAINER_PADDING_TOP = 10;
 const ARTICLE_CONTAINER_PADDING_SIDE = 3;
@@ -53,18 +46,13 @@ const ARTICLE_TITLE_FONT_SIZE = '2.5rem';
 const ARTICLE_CONTAINER_BOX_SHADOW = 7;
 const ARTICLE_CONTAINER_BORDER_RADIUS = 0;
 
-/**
- * Colores y fondo para modo oscuro
- */
 const BACKGROUND_COLOR = '#121212';
 const TEXT_COLOR = '#FFFFFF';
 const TITLE_COLOR = '#FF00AA';
 const SUBTITLE_COLOR = '#CCC';
 const CARD_BG_COLOR = '#1F1F1F';
 
-/**
- * Variables SEO y fallback
- */
+// Variables SEO y fallback
 const FALLBACK_TITLE = 'Artículo sin título';
 const FALLBACK_DESCRIPTION = 'Artículo de blog en Talberos';
 const FALLBACK_AUTHOR = 'Talberos Team';
@@ -72,9 +60,24 @@ const FALLBACK_BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
 /**
+ * Imágenes fallback en /public/images/preview
+ * para usarlas cuando un post no define su propia imagen.
+ */
+const FALLBACK_IMAGES = {
+  webp: '/images/preview.webp',
+  png: '/images/preview.png',
+  jpg: '/images/preview.jpg',
+};
+
+/**
+ * Palabras clave base que siempre se añaden a las del frontmatter
+ */
+const DEFAULT_KEYWORDS = ['Talberos', 'tableros'];
+
+/**
  * IMPORT DINÁMICO:
  * Cargamos el Menu sin SSR para poder usar hooks de cliente (useState, etc.)
- * en su implementación.
+ * en su implementación, mejorando además la performance inicial del SSR.
  */
 const Menu = dynamic(() => import('../../components/landing/Menu'), {
   ssr: false,
@@ -99,12 +102,12 @@ export async function getStaticPaths() {
 
   return {
     paths,
-    fallback: false, // Si un path no está generado, muestra 404
+    fallback: false, // Si un path no existe, 404
   };
 }
 
 /**
- * Lee y procesa un artículo (MD o MDX) desde la carpeta /blogs
+ * Lee y procesa un artículo (MD o MDX) desde la carpeta /blogs.
  * Devuelve props que serán inyectadas en el componente de página.
  */
 export async function getStaticProps({ params }) {
@@ -124,20 +127,20 @@ export async function getStaticProps({ params }) {
     try {
       fileContent = await fs.readFile(filePathMd, 'utf8');
     } catch (errMd) {
-      // Si no se encuentra ni .mdx ni .md, devolvemos 404
+      // No hay ni .mdx ni .md -> 404
       return { notFound: true };
     }
   }
 
-  // Extraemos frontmatter y contenido raw
+  // Extraemos frontmatter y contenido
   const { data, content } = matter(fileContent);
 
-  // Convertimos a MDX o MD->HTML
+  // Procesamos a MDX o MD->HTML
   let mdxSource = null;
   let htmlContent = '';
 
   if (isMdx) {
-    // Procesamos contenido MDX
+    // Contenido MDX
     mdxSource = await serialize(content, {
       scope: data,
       mdxOptions: {
@@ -145,7 +148,7 @@ export async function getStaticProps({ params }) {
       },
     });
   } else {
-    // Procesamos contenido MD a HTML con Remark
+    // Contenido MD
     const processed = await unified()
       .use(remarkParse)
       .use(remarkGfm)
@@ -154,19 +157,19 @@ export async function getStaticProps({ params }) {
     htmlContent = processed.toString();
   }
 
-  // URL canónica (para SEO y redes)
+  // URL canónica para SEO
   const pageUrl = `${FALLBACK_BASE_URL}/blog/${article}`;
 
-  // Chequeamos si la imagen (definida en frontmatter) está en /public
+  // Verificamos si la imagen (frontmatter.image) existe en /public
+  // De lo contrario, guardamos null y luego usaremos fallback en la view.
   let finalImageURL = null;
   if (data.image) {
     const localImagePath = path.join(process.cwd(), 'public', data.image);
     try {
-      await fs.access(localImagePath);
+      await fs.access(localImagePath); // Comprueba que el archivo existe
       finalImageURL = FALLBACK_BASE_URL + data.image;
     } catch (errFile) {
-      // Imagen no encontrada en /public, logueamos error
-      console.error(`Imagen no encontrada en disco: ${localImagePath}`);
+      console.warn(`[ARTICLE] Imagen no encontrada en disco: ${localImagePath}`);
     }
   }
 
@@ -197,7 +200,7 @@ export async function getStaticProps({ params }) {
     props: {
       frontMatter: {
         ...data,
-        image: finalImageURL || null,
+        image: finalImageURL || null, // Guardamos la URL final o null
       },
       mdxSource,
       htmlContent,
@@ -209,22 +212,10 @@ export async function getStaticProps({ params }) {
   };
 }
 
-/** ------------------------- PAGE COMPONENT ---------------------------------------------------- */
-
-/**
- * BlogArticlePage
- *
- * @param {Object} props
- * @param {Object} props.frontMatter - Metadatos del artículo (title, description, keywords, image, date, author, etc.)
- * @param {string} props.mdxSource   - Contenido serializado si es MDX
- * @param {string} props.htmlContent - Contenido HTML si es MD
- * @param {string} props.pageUrl     - URL canónica para SEO
- * @param {Object} props.jsonLdData  - Datos estructurados (BlogPosting) para SEO
- * @param {string} props.articleSlug - Slug del artículo
- * @param {boolean} props.isMdx      - Indica si el contenido original es .mdx
- *
- * @returns {JSX.Element} Render de la página de artículo, con menús, metadatos y contenido.
- */
+/** ---------------------------------------------------------------------------------------------
+ * PAGE COMPONENT: BlogArticlePage
+ * Renderiza el artículo (MD o MDX) con SEO, fallback de imágenes, etc.
+ * --------------------------------------------------------------------------------------------*/
 export default function BlogArticlePage({
   frontMatter,
   mdxSource,
@@ -234,17 +225,12 @@ export default function BlogArticlePage({
   articleSlug,
   isMdx,
 }) {
-  // Hook de Next Router para manejo de estados de carga
   const router = useRouter();
-
-  // Hooks de MUI para tema y detección de viewport (ej. mobile vs desktop)
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // Estado local para detectar si el documento está en modo oscuro (opcional)
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // Efecto para sincronizar con la clase 'dark-mode' en <html> si existe
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setIsDarkMode(document.documentElement.classList.contains('dark-mode'));
@@ -262,48 +248,96 @@ export default function BlogArticlePage({
     image = null,
     keywords = [],
     date = null,
+    author = FALLBACK_AUTHOR,
   } = frontMatter;
+
+  // Fusionamos las palabras clave: frontMatter + default
+  const finalKeywords = Array.isArray(keywords)
+    ? [...new Set([...DEFAULT_KEYWORDS, ...keywords])]
+    : DEFAULT_KEYWORDS;
+
+  // Si NO hay imagen del artículo (image == null), usamos fallback
+  const hasCustomImage = Boolean(image);
+  const fallbackImageWebp = FALLBACK_BASE_URL + FALLBACK_IMAGES.webp;
+  const fallbackImagePng = FALLBACK_BASE_URL + FALLBACK_IMAGES.png;
+  const fallbackImageJpg = FALLBACK_BASE_URL + FALLBACK_IMAGES.jpg;
 
   return (
     <>
       {/* SEO HEAD TAGS */}
       <Head>
+        {/* Título y descripción */}
         <title>{title}</title>
         <meta name="description" content={description} />
+        {/* Indexación */}
+        <meta name="robots" content="index, follow" />
         <link rel="canonical" href={pageUrl} />
+        {/* Autor */}
+        <meta name="author" content={author} />
+
+        {/* Keywords (frontmatter + default) */}
+        {finalKeywords.length > 0 && (
+          <meta name="keywords" content={finalKeywords.join(', ')} />
+        )}
 
         {/* Open Graph (OG) */}
         <meta property="og:type" content="article" />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
         <meta property="og:url" content={pageUrl} />
-        {image && <meta property="og:image" content={image} />}
+
+        {hasCustomImage ? (
+          // Si el post define su propia imagen
+          <meta property="og:image" content={image} />
+        ) : (
+          // Si no, añadimos múltiples OG images (webp, png, jpg) como fallback
+          <>
+            <meta property="og:image" content={fallbackImageWebp} />
+            <meta property="og:image" content={fallbackImagePng} />
+            <meta property="og:image" content={fallbackImageJpg} />
+          </>
+        )}
 
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
-        {image && <meta name="twitter:image" content={image} />}
 
-        {/* Keywords */}
-        {Array.isArray(keywords) && keywords.length > 0 && (
-          <meta name="keywords" content={keywords.join(', ')} />
+        {hasCustomImage ? (
+          <meta name="twitter:image" content={image} />
+        ) : (
+          <>
+            <meta name="twitter:image" content={fallbackImageWebp} />
+            <meta name="twitter:image" content={fallbackImagePng} />
+            <meta name="twitter:image" content={fallbackImageJpg} />
+          </>
         )}
 
         {/* JSON-LD para artículos (BlogPosting) */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(jsonLdData),
-          }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdData) }}
         />
+
+        {/*
+          Ejemplo de favicons si deseas colocarlos aquí (alternativa a _document.js).
+          <link rel="icon" href="/favicon.ico" sizes="any" />
+          <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
+          <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16" />
+        */}
+
+        {/* theme-color para navegadores móviles (modo oscuro por defecto) */}
+        <meta name="theme-color" content="#1F1F1F" />
       </Head>
 
-      {/* Menú principal de la aplicación */}
+      {/* Menu principal (cargado dinámicamente) */}
       <Menu />
 
       {/* CONTENEDOR PRINCIPAL */}
       <Box
+        component="article"
+        role="article"
+        aria-label={`Artículo: ${title}`}
         sx={{
           backgroundColor: BACKGROUND_COLOR,
           minHeight: '100vh',
@@ -334,7 +368,7 @@ export default function BlogArticlePage({
             }}
           >
             <Typography
-              variant="h2"
+              variant="h1"
               sx={{
                 fontSize: ARTICLE_TITLE_FONT_SIZE,
                 fontWeight: 'bold',
@@ -347,7 +381,7 @@ export default function BlogArticlePage({
 
             {description && (
               <Typography
-                variant="h3"
+                variant="h2"
                 sx={{
                   fontSize: '1.2rem',
                   color: SUBTITLE_COLOR,
@@ -373,19 +407,36 @@ export default function BlogArticlePage({
           </header>
 
           {/* IMAGEN PRINCIPAL (OPCIONAL) */}
-          {image && (
+          {hasCustomImage ? (
             <Box sx={{ textAlign: 'center', mb: 4 }}>
-              <img
+              <Image
                 src={image}
-                alt={title}
-                style={{ maxWidth: '100%', height: 'auto' }}
+                alt={`Imagen principal del artículo: ${title}`}
+                layout="responsive"
+                width={1200}
+                height={600}
+                priority
+                style={{ borderRadius: 8 }}
+              />
+            </Box>
+          ) : (
+            // Si NO hay imagen del artículo, usamos fallback (ej: .png)
+            <Box sx={{ textAlign: 'center', mb: 4 }}>
+              <Image
+                src={fallbackImagePng}
+                alt="Imagen de fallback para artículos"
+                layout="responsive"
+                width={1200}
+                height={600}
+                priority
+                style={{ borderRadius: 8 }}
               />
             </Box>
           )}
 
           {/* CONTENIDO DEL ARTÍCULO */}
           <Box
-            component="main"
+            component="section"
             sx={{
               lineHeight: 1.7,
               '& h1, & h2, & h3, & h4, & h5, & h6': {
@@ -424,10 +475,10 @@ export default function BlogArticlePage({
             }}
           >
             {isMdx ? (
-              // Si es .mdx, renderizamos con <MDXRemote />
+              // Si es .mdx, renderizamos con MDXRemote
               <MDXRemote {...mdxSource} />
             ) : (
-              // Si es .md, inyectamos el HTML con dangerouslySetInnerHTML
+              // Si es .md, inyectamos el HTML
               <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
             )}
           </Box>

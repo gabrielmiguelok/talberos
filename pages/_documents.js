@@ -1,37 +1,39 @@
 /**
  * MIT License
- * -----------
+ * ----------------------------------------------------------------------------
  * Archivo: /pages/_document.js
  *
  * DESCRIPCIÓN:
- *  - Personaliza la estructura HTML (renderizado en servidor) de tu aplicación Next.js.
- *  - Asegura una buena accesibilidad (lang="es"), performance (preconnect), y SEO base.
- *  - Separa esta lógica del meta SEO más detallado, que reside en `_app.js` o en cada página.
+ *  - Personaliza la estructura HTML (SSR) de tu aplicación Next.js.
+ *  - Define <Html lang="es"> para accesibilidad y SEO en español.
+ *  - Configura elementos globales (preconnect, dns-prefetch, etc.) para
+ *    optimizar performance y experiencia de usuario.
+ *  - Separa responsabilidades: Los meta tags de SEO específicos residen
+ *    en cada página o en `_app.js`.
  *
  * PRINCIPIOS SOLID:
- *  - SRP (Single Responsibility Principle): Este archivo SOLO gestiona estructura y
- *    configuración base de <html>, <head>, <body>, en el servidor.
- *  - Evita mezclar lógica de negocio o metadatos dinámicos,
- *    que se manejan en `_app.js` o las propias páginas.
+ *  1. SRP: Este archivo maneja exclusivamente la estructura base del documento.
+ *  2. OCP: Fácil de extender para añadir preloads/preconnect adicionales.
+ *  3. LSP: Sustituible por otra clase que extienda Document sin romper la app.
+ *  4. ISP: No fuerza dependencias de SEO en páginas que no lo necesiten.
+ *  5. DIP: Depende de la abstracción Document de Next.js, no de implementaciones concretas.
  */
 
 import Document, { Html, Head, Main, NextScript } from 'next/document';
 
 /**
  * Clase MyDocument
- * ---------------
- * Extiende la clase Document de Next.js para:
- *  - Inyectar <Html lang="es">, optimizando accesibilidad y SEO.
- *  - Añadir links de preconnect/preload para mejorar performance.
- *  - Dejar <Main /> y <NextScript /> para que Next.js cargue la aplicación.
+ * ----------------
+ * Extiende Document para:
+ *  - Usar <Html lang="es"> y favorecer SEO e i18n para hispanohablantes.
+ *  - Añadir preconnect/dns-prefetch para hosts externos (ej. Google Fonts).
+ *  - Rendirizar <Main /> y <NextScript /> donde Next.js monta la app.
  */
 export default class MyDocument extends Document {
   /**
    * getInitialProps:
-   *  - Método estático que Next.js llama en el servidor para obtener
-   *    las props iniciales necesarias para renderizar el documento.
-   * @param {import('next/document').DocumentContext} ctx - contexto de Next.js
-   * @returns {Promise<import('next/document').DocumentInitialProps>}
+   *  - Método estático que Next.js invoca en el servidor.
+   *  - Retorna las props iniciales para renderizar el documento.
    */
   static async getInitialProps(ctx) {
     const initialProps = await Document.getInitialProps(ctx);
@@ -39,17 +41,19 @@ export default class MyDocument extends Document {
   }
 
   /**
-   * Render principal.
-   *  - Estructura básica del documento: <Html lang="es">, <Head>, <body>.
+   * Render principal que define la estructura HTML base.
+   *  - <Html lang="es"> para accesibilidad y SEO.
+   *  - <Head> para cualquier configuración global no relacionada a SEO dinámico.
+   *  - <body> con <Main /> y <NextScript /> donde Next.js inyecta la app y sus scripts.
    */
   render() {
     return (
       <Html lang="es">
         <Head>
           {/*
-            Preconnect a orígenes externos para mejorar la performance
-            (por ejemplo, Google Fonts, si lo usas).
-            Ajusta o descomenta según tu caso.
+            Sugerencia: Preconnect a orígenes externos (por ejemplo, si usas Google Fonts),
+            mejora la performance al establecer conexiones anticipadas.
+            Descomenta o ajusta según tus necesidades.
           */}
           {/*
             <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
@@ -57,35 +61,43 @@ export default class MyDocument extends Document {
           */}
 
           {/*
-            Preload de fuentes o recursos críticos (descomenta y ajusta si lo requieres).
+            Si deseas precargar fuentes u otros recursos críticos:
             <link
               rel="preload"
               as="font"
-              href="/fonts/MyCustomFont.woff2"
+              href="/fonts/MiFuentePersonalizada.woff2"
               type="font/woff2"
               crossOrigin="anonymous"
             />
           */}
 
           {/*
-            Metadatos para indicar esquema de color preferido (accesibilidad).
-            "light dark" indica que tu sitio soporta ambos modos.
+            Metadato que indica el soporte de esquemas de color:
+            "light dark" sugiere que tu web soporta ambos modos.
           */}
           <meta name="color-scheme" content="light dark" />
 
           {/*
-            Configura theme-color para cada modo, ayudando a navegadores móviles
-            a personalizar el UI (barra de direcciones).
-            Ajusta los colores a tu preferencia.
+            Definición de color de la interfaz en navegadores móviles:
+            - media="(prefers-color-scheme: light)" => color claro
+            - media="(prefers-color-scheme: dark)" => color oscuro
+            Ajusta los valores (#ffffff y #000000) según tu preferencia de marca.
           */}
           <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-          <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+          <meta name="theme-color" content="#1f1f1f" media="(prefers-color-scheme: dark)" />
+
+          {/*
+            Otras configuraciones globales que no requieran interacción dinámica:
+            - Fuentes, íconos de sitios, scripts externos opcionales, etc.
+            - Recuerda que el SEO dinámico y los metadatos principales
+              se manejan en cada página o en _app.js.
+          */}
         </Head>
 
         <body>
           {/*
-            Main renderiza la aplicación react,
-            NextScript inyecta los scripts necesarios de Next.js
+            <Main /> renderiza la aplicación React,
+            <NextScript /> inyecta los scripts necesarios de Next.js
           */}
           <Main />
           <NextScript />

@@ -6,69 +6,146 @@
  * Archivo: /pages/index.js
  *
  * DESCRIPCIÓN:
- *   - Página principal (Landing Page) de Talberos.
- *   - Contiene las secciones centrales de promoción de la librería.
- *   - Incluye la barra de navegación, secciones informativas y el chat flotante
- *     de WhatsApp. Ahora se añade el nuevo chatbot de Talberos.
+ *   - Landing Page principal de Talberos, con modo oscuro opcional y
+ *     múltiples formatos de imagen para maximizar la compatibilidad
+ *     en previsualizaciones.
  *
  * OBJETIVO:
- *   - Servir como punto de entrada a la plataforma, mostrando la propuesta de
- *     valor de Talberos y dirigiendo a secciones específicas.
- *   - Integrar también el chatbot, con un ícono flotante para abrir su ventana.
+ *   - Servir como puerta de entrada a la plataforma Talberos.
+ *   - Cuidar el SEO y la compatibilidad con diferentes lectores y redes sociales.
  *
  * PRINCIPIOS SOLID APLICADOS:
- *   1. SRP: Este componente organiza las secciones principales de la Landing,
- *      delegando el contenido a subcomponentes (Hero, FAQ, etc.) y gestionando
- *      únicamente la apertura/cierre del chatbot.
- *   2. OCP: Podemos agregar más secciones o funcionalidades sin alterar la
- *      estructura base.
- *   3. LSP: Cada sección es autónoma; podemos intercambiarlas sin romper
- *      la coherencia de la página.
- *   4. ISP: Se evita exponer métodos innecesarios; cada parte recibe sólo las
- *      props que necesita.
- *   5. DIP: El index no depende de detalles internos de subcomponentes.
+ *   1. SRP: Estructura principal de la landing y sus metadatos SEO.
+ *   2. OCP: Sencillo de extender con más secciones o ajustes.
+ *   3. LSP: Subcomponentes intercambiables sin quebrar la lógica central.
+ *   4. ISP: Solo provee las props (isDarkMode, onThemeToggle) necesarias.
+ *   5. DIP: No depende de implementaciones concretas de subcomponentes (usa imports).
  *
  * LICENCIA:
  *   - Código ofrecido bajo licencia MIT.
  */
 
-import React, { useState } from "react";
+import React, { useState } from 'react';
+import Head from 'next/head';
 
-// Barra de navegación y secciones de la landing
-import Menu from "../components/landing/Menu";
-import HeroTalberos from "../components/landing/HeroTalberos";
-import MetodologiaSeccion from "../components/landing/MetodologiaSeccion";
-import TalberosSection from "../components/landing/TalberosSection";
-import UniqueDifferentiator from "../components/landing/UniqueDifferentiator";
-import TalberosHighlights from "../components/landing/TalberosHighlights";
-import FAQSectionTalberos from "../components/landing/FAQSectionTalberos";
-import Footer from "../components/landing/Footer";
-import { ChatWhatsAppFloat } from "../components/IconWhatsappFlotante";
+// Componentes de la Landing
+import Menu from '../components/landing/Menu';
+import HeroTalberos from '../components/landing/HeroTalberos';
+import MetodologiaSeccion from '../components/landing/MetodologiaSeccion';
+import TalberosSection from '../components/landing/TalberosSection';
+import UniqueDifferentiator from '../components/landing/UniqueDifferentiator';
+import TalberosHighlights from '../components/landing/TalberosHighlights';
+import FAQSectionTalberos from '../components/landing/FAQSectionTalberos';
+import Footer from '../components/landing/Footer';
 
-// NUEVO: Componentes del chatbot interno
-import FloatingChatIcon from "../components/chatbot/FloatingChatIcon";
-import ChatModal from "../components/chatbot/ChatModal";
+// Botón flotante de WhatsApp
+import { ChatWhatsAppFloat } from '../components/IconWhatsappFlotante';
 
-/**
- * Componente de la Landing Page principal de Talberos.
- *
- * @function IndexTalberos
- * @param {boolean} [isDarkMode=false] - Indica si el modo oscuro está activo.
- * @param {Function} [onThemeToggle] - Función para alternar el tema (puede no usarse aquí).
- * @returns {JSX.Element} La estructura principal de la Landing Page.
- */
+// Chatbot interno
+import FloatingChatIcon from '../components/chatbot/FloatingChatIcon';
+import ChatModal from '../components/chatbot/ChatModal';
+
 export default function IndexTalberos({ isDarkMode = false, onThemeToggle }) {
-  // Estado para abrir/cerrar la ventana modal del chatbot
   const [chatOpen, setChatOpen] = useState(false);
+
+  /**
+   * Metadatos SEO de la Landing Page, con múltiples formatos de imagen (webp, png, jpg).
+   */
+  const PAGE_TITLE = 'Talberos - Framework Open Source en React y Next.js';
+  const PAGE_DESCRIPTION =
+    'Talberos es un framework 100% libre y escalable para crear tablas Excel-like, paneles (tableros) y soluciones en React y Next.js con autenticación Google OAuth.';
+  const PAGE_KEYWORDS =
+    'Talberos, tableros, Excel-like, React, Next.js, open-source, framework, MIT';
+
+  // URL base de tu sitio (ajusta si usas un dominio distinto)
+  const BASE_URL = 'https://talberos.tech';
+
+  // Rutas de las imágenes (dentro de /public/images, por ejemplo).
+  // Ajusta según dónde hayas colocado tus archivos webp, png, jpg
+  const IMAGE_WEBP = `${BASE_URL}/images/preview.webp`;
+  const IMAGE_PNG = `${BASE_URL}/images/preview.png`;
+  const IMAGE_JPG = `${BASE_URL}/images/preview.jpg`;
 
   return (
     <>
-      {/* Barra de navegación con modo claro/oscuro (si se desea utilizar). */}
+      <Head>
+        {/* Title y descripción principales */}
+        <title>{PAGE_TITLE}</title>
+        <meta name="description" content={PAGE_DESCRIPTION} />
+
+        {/* Palabras clave y robots */}
+        <meta name="keywords" content={PAGE_KEYWORDS} />
+        <meta name="robots" content="index, follow" />
+        <meta name="author" content="Gabriel Hércules Miguel" />
+
+        {/* Favicons y variantes para distintas resoluciones */}
+        {/*
+          Íconos para navegadores de escritorio y móviles.
+          Ajusta las rutas si tienes /public/images/icons/...
+        */}
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
+        <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+
+        {/* Metadatos Open Graph (para redes sociales y previsualizaciones) */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={PAGE_TITLE} />
+        <meta property="og:description" content={PAGE_DESCRIPTION} />
+        <meta property="og:url" content={BASE_URL} />
+
+        {/*
+          Incluir múltiples etiquetas og:image incrementa la posibilidad
+          de que la plataforma use un formato soportado.
+          El orden sugiere preferencia (primero WebP, luego PNG y JPG).
+        */}
+        <meta property="og:image" content={IMAGE_WEBP} />
+        <meta property="og:image" content={IMAGE_PNG} />
+        <meta property="og:image" content={IMAGE_JPG} />
+
+        {/* Twitter Card (similar estrategia con múltiples imágenes) */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={PAGE_TITLE} />
+        <meta name="twitter:description" content={PAGE_DESCRIPTION} />
+        <meta name="twitter:url" content={BASE_URL} />
+        <meta name="twitter:image" content={IMAGE_WEBP} />
+        <meta name="twitter:image" content={IMAGE_PNG} />
+        <meta name="twitter:image" content={IMAGE_JPG} />
+
+        {/* URL canónica para evitar contenido duplicado */}
+        <link rel="canonical" href={BASE_URL} />
+
+        {/* Datos Estructurados (JSON-LD) para describir el sitio web */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: 'Talberos',
+              url: BASE_URL,
+              description: PAGE_DESCRIPTION,
+              potentialAction: {
+                '@type': 'SearchAction',
+                target: `${BASE_URL}/?s={search_term_string}`,
+                'query-input': 'required name=search_term_string',
+              },
+            }),
+          }}
+        />
+
+        {/*
+          theme-color para navegadores móviles, ajusta el color si usas otro
+          Branding. Se asume modo oscuro base (#1F1F1F).
+        */}
+        <meta name="theme-color" content="#1F1F1F" />
+      </Head>
+
+      {/* Barra de navegación con modo oscuro opcional */}
       <Menu isDarkMode={isDarkMode} onThemeToggle={onThemeToggle} />
 
-      {/* Contenedor principal semántico */}
       <main role="main">
-        {/* Secciones de la Landing Page */}
+        {/* Secciones principales de la Landing Page */}
         <HeroTalberos />
         <MetodologiaSeccion />
         <TalberosSection />
@@ -76,17 +153,17 @@ export default function IndexTalberos({ isDarkMode = false, onThemeToggle }) {
         <TalberosHighlights />
         <FAQSectionTalberos />
 
-        {/* Footer con links relevantes y créditos */}
+        {/* Footer con créditos y enlaces útiles */}
         <Footer />
 
-        {/* Modal del chatbot (se muestra solo si chatOpen === true) */}
+        {/* Modal del chatbot (se muestra si chatOpen === true) */}
         {chatOpen && <ChatModal onClose={() => setChatOpen(false)} />}
       </main>
 
       {/* Ícono flotante de WhatsApp */}
       <ChatWhatsAppFloat isEnglish={false} />
 
-      {/* NUEVO: Ícono flotante para abrir ChatModal */}
+      {/* Ícono flotante para abrir el chatbot interno */}
       <FloatingChatIcon onClick={() => setChatOpen(true)} />
     </>
   );
