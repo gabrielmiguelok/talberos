@@ -13,22 +13,12 @@
  * OBJETIVO:
  *   - Servir como puerta de entrada a la plataforma Talberos.
  *   - Cuidar el SEO y la compatibilidad con diferentes lectores y redes sociales.
- *
- * PRINCIPIOS SOLID APLICADOS:
- *   1. SRP: Estructura principal de la landing y sus metadatos SEO.
- *   2. OCP: Sencillo de extender con más secciones o ajustes.
- *   3. LSP: Subcomponentes intercambiables sin quebrar la lógica central.
- *   4. ISP: Solo provee las props (isDarkMode, onThemeToggle) necesarias.
- *   5. DIP: No depende de implementaciones concretas de subcomponentes (usa imports).
- *
- * LICENCIA:
- *   - Código ofrecido bajo licencia MIT.
  */
 
 import React, { useState } from 'react';
 import Head from 'next/head';
 
-// Componentes de la Landing
+// Secciones principales de la Landing
 import Menu from '../components/landing/Menu';
 import HeroTalberos from '../components/landing/HeroTalberos';
 import MetodologiaSeccion from '../components/landing/MetodologiaSeccion';
@@ -57,11 +47,10 @@ export default function IndexTalberos({ isDarkMode = false, onThemeToggle }) {
   const PAGE_KEYWORDS =
     'Talberos, tableros, Excel-like, React, Next.js, open-source, framework, MIT';
 
-  // URL base de tu sitio (ajusta si usas un dominio distinto)
+  // URL base (ajusta si usas otro dominio real)
   const BASE_URL = 'https://talberos.tech';
 
-  // Rutas de las imágenes (dentro de /public/images, por ejemplo).
-  // Ajusta según dónde hayas colocado tus archivos webp, png, jpg
+  // Rutas de imágenes (ajusta si difieren)
   const IMAGE_WEBP = `${BASE_URL}/images/preview.webp`;
   const IMAGE_PNG = `${BASE_URL}/images/preview.png`;
   const IMAGE_JPG = `${BASE_URL}/images/preview.jpg`;
@@ -69,7 +58,6 @@ export default function IndexTalberos({ isDarkMode = false, onThemeToggle }) {
   return (
     <>
       <Head>
-        {/* Title y descripción principales */}
         <title>{PAGE_TITLE}</title>
         <meta name="description" content={PAGE_DESCRIPTION} />
 
@@ -78,32 +66,22 @@ export default function IndexTalberos({ isDarkMode = false, onThemeToggle }) {
         <meta name="robots" content="index, follow" />
         <meta name="author" content="Gabriel Hércules Miguel" />
 
-        {/* Favicons y variantes para distintas resoluciones */}
-        {/*
-          Íconos para navegadores de escritorio y móviles.
-          Ajusta las rutas si tienes /public/images/icons/...
-        */}
+        {/* Favicons (ajusta rutas si cambian) */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
         <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
 
-        {/* Metadatos Open Graph (para redes sociales y previsualizaciones) */}
+        {/* Open Graph */}
         <meta property="og:type" content="website" />
         <meta property="og:title" content={PAGE_TITLE} />
         <meta property="og:description" content={PAGE_DESCRIPTION} />
         <meta property="og:url" content={BASE_URL} />
-
-        {/*
-          Incluir múltiples etiquetas og:image incrementa la posibilidad
-          de que la plataforma use un formato soportado.
-          El orden sugiere preferencia (primero WebP, luego PNG y JPG).
-        */}
         <meta property="og:image" content={IMAGE_WEBP} />
         <meta property="og:image" content={IMAGE_PNG} />
         <meta property="og:image" content={IMAGE_JPG} />
 
-        {/* Twitter Card (similar estrategia con múltiples imágenes) */}
+        {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={PAGE_TITLE} />
         <meta name="twitter:description" content={PAGE_DESCRIPTION} />
@@ -112,10 +90,10 @@ export default function IndexTalberos({ isDarkMode = false, onThemeToggle }) {
         <meta name="twitter:image" content={IMAGE_PNG} />
         <meta name="twitter:image" content={IMAGE_JPG} />
 
-        {/* URL canónica para evitar contenido duplicado */}
+        {/* URL canónica */}
         <link rel="canonical" href={BASE_URL} />
 
-        {/* Datos Estructurados (JSON-LD) para describir el sitio web */}
+        {/* Datos Estructurados (JSON-LD) */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -134,36 +112,29 @@ export default function IndexTalberos({ isDarkMode = false, onThemeToggle }) {
           }}
         />
 
-        {/*
-          theme-color para navegadores móviles, ajusta el color si usas otro
-          Branding. Se asume modo oscuro base (#1F1F1F).
-        */}
         <meta name="theme-color" content="#1F1F1F" />
       </Head>
 
-      {/* Barra de navegación con modo oscuro opcional */}
+      {/* Barra de navegación (modo oscuro opcional) */}
       <Menu isDarkMode={isDarkMode} onThemeToggle={onThemeToggle} />
 
-      <main role="main">
-        {/* Secciones principales de la Landing Page */}
+      <main role="main" id="main-content">
         <HeroTalberos />
         <MetodologiaSeccion />
         <TalberosSection />
         <UniqueDifferentiator />
         <TalberosHighlights />
         <FAQSectionTalberos />
-
-        {/* Footer con créditos y enlaces útiles */}
         <Footer />
 
         {/* Modal del chatbot (se muestra si chatOpen === true) */}
         {chatOpen && <ChatModal onClose={() => setChatOpen(false)} />}
       </main>
 
-      {/* Ícono flotante de WhatsApp */}
+      {/* Ícono flotante de WhatsApp (draggable) */}
       <ChatWhatsAppFloat isEnglish={false} />
 
-      {/* Ícono flotante para abrir el chatbot interno */}
+      {/* Ícono flotante para abrir el chatbot interno (no arrastrable) */}
       <FloatingChatIcon onClick={() => setChatOpen(true)} />
     </>
   );

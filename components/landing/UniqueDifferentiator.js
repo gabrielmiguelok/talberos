@@ -1,24 +1,16 @@
-'use client';
+"use client";
 
 /**
- * @module UniqueDifferentiator
- * @description
- * Este módulo define un componente principal que describe el valor diferencial de la librería
- * Talberos, resaltando sus ventajas y características sin caer en tecnicismos complejos.
- * Se orienta a la presentación en la página web, con un estilo visual atractivo y mensajes
- * claros sobre lo que hace a Talberos una opción única.
+ * MIT License
+ * ----------------------------------------------------------------------------
+ * Archivo: /components/landing/UniqueDifferentiator.js
  *
- * Principios SOLID aplicados:
- * - **S**ingle Responsibility: Cada parte del código cumple una función específica (datos de bloques,
- *   secciones de contenido, estilo visual).
- * - **O**pen/Closed: La estructura se puede ampliar con más secciones u otros bloques sin modificar la base.
- * - **L**iskov Substitution: Al ser componentes funcionales independientes (sin herencia), pueden sustituirse o moverse libremente.
- * - **I**nterface Segregation: El componente no fuerza props innecesarias y se mantiene conciso.
- * - **D**ependency Inversion: Cada elemento utiliza datos externos independientes (ej. `bloquesDestacados`).
+ * DESCRIPCIÓN:
+ *   - Componente que describe el valor diferencial de Talberos, enfatizando
+ *     sus características únicas en la Landing Page.
  *
- * Cohesión y autodocumentación:
- * - Se incluyen comentarios JSDoc que explican la intención de cada parte.
- * - Se evita el acoplamiento excesivo, manteniendo una estructura modular y clara.
+ * LICENCIA:
+ *   - Bajo licencia MIT, con fines educativos y demostrativos.
  */
 
 import React from 'react';
@@ -34,6 +26,8 @@ import {
   ListItemText,
   useMediaQuery,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { motion } from 'framer-motion';
 
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CodeIcon from '@mui/icons-material/Code';
@@ -41,12 +35,20 @@ import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import SecurityIcon from '@mui/icons-material/Security';
 import StarOutlineIcon from '@mui/icons-material/StarOutline';
 
-import { useTheme } from '@mui/material/styles';
-import { motion } from 'framer-motion';
+/** ---------------------------------------------------------------------------
+ * CONSTANTES DE CONFIGURACIÓN (Colores, tamaños, etc.)
+ * ---------------------------------------------------------------------------*/
+const SECTION_BG_COLOR = "#121212";
+const CARD_BG_COLOR = "#242424";
+const HEADING_COLOR = "#FF00AA";
+const TEXT_COLOR = "#FFFFFF";
+
+const HEADING_FONT_SIZE = "2rem";
+const SUBHEADING_FONT_SIZE = "1.2rem";
+const PARAGRAPH_FONT_SIZE = "1rem";
 
 /**
- * Bloques destacados que comunican los pilares fundamentales de Talberos sin entrar en tecnicismos.
- * Cada bloque contiene un ícono, un título y un texto explicativo.
+ * Bloques destacados: (icono, titulo, texto).
  */
 const bloquesDestacados = [
   {
@@ -54,34 +56,24 @@ const bloquesDestacados = [
     texto: `Talberos se integra fácilmente a tu proyecto y crece contigo.
     Es rápido de implementar, pero no sacrifica un enfoque limpio y sostenible.
     Logra resultados profesionales sin enredos técnicos.`,
-    icono: <RocketLaunchIcon sx={{ fontSize: 60, color: '#FF00AA' }} />,
+    icono: <RocketLaunchIcon sx={{ fontSize: 60, color: HEADING_COLOR }} aria-hidden="true" />,
   },
   {
     titulo: 'Código Abierto y Mantenible',
     texto: `Al ser totalmente open source (MIT), Talberos promueve la libertad de
     adaptación y la cooperación de la comunidad. Sus principios de clean code
     garantizan estabilidad y escalabilidad a largo plazo.`,
-    icono: <CodeIcon sx={{ fontSize: 60, color: '#FF00AA' }} />,
+    icono: <CodeIcon sx={{ fontSize: 60, color: HEADING_COLOR }} aria-hidden="true" />,
   },
   {
     titulo: 'Seguridad Integrada',
     texto: `Incorpora buenas prácticas de seguridad desde la base, reforzando cada
     módulo para proteger tus datos. Aquí, la seguridad no es una capa adicional,
     sino parte esencial de la arquitectura.`,
-    icono: <SecurityIcon sx={{ fontSize: 60, color: '#FF00AA' }} />,
+    icono: <SecurityIcon sx={{ fontSize: 60, color: HEADING_COLOR }} aria-hidden="true" />,
   },
 ];
 
-/**
- * Componente principal que describe el “Diferenciador Único” de Talberos.
- * - Muestra una introducción con título y descripción.
- * - Renderiza los bloques destacados.
- * - Presenta una sección intermedia con un ejemplo visual y lista de fortalezas.
- * - Concluye con un bloque final resaltado.
- *
- * @function UniqueDifferentiator
- * @returns {JSX.Element} Sección completa lista para integrarse en la landing page.
- */
 export default function UniqueDifferentiator() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -90,42 +82,47 @@ export default function UniqueDifferentiator() {
     <Box
       component="section"
       id="diferenciador-unico"
+      aria-labelledby="unique-differentiator-heading"
       sx={{
         position: 'relative',
         overflow: 'hidden',
-        backgroundColor: '#121212',
-        color: '#FFFFFF',
+        backgroundColor: SECTION_BG_COLOR,
+        color: TEXT_COLOR,
         py: { xs: 8, md: 12 },
         px: { xs: 2, md: 6 },
         userSelect: 'none',
       }}
-      aria-label="Diferenciador Único de Talberos"
     >
       {/* ENCABEZADO PRINCIPAL */}
-      <header>
+      <header style={{ textAlign: 'center' }}>
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          style={{ textAlign: 'center' }}
         >
           <Typography
-            variant="h3"
+            id="unique-differentiator-heading"
             component="h2"
-            fontWeight="bold"
-            sx={{ color: '#FF00AA', mb: 4 }}
+            sx={{
+              fontWeight: 'bold',
+              mb: 4,
+              color: HEADING_COLOR,
+              fontSize: HEADING_FONT_SIZE,
+            }}
           >
             ¿Por qué Talberos es único?
           </Typography>
+
           <Typography
             component="p"
             sx={{
-              color: '#fff',
+              color: TEXT_COLOR,
               mb: 8,
               maxWidth: '800px',
               mx: 'auto',
               lineHeight: 1.6,
+              fontSize: PARAGRAPH_FONT_SIZE,
             }}
           >
             Combinamos la experiencia de una tabla Excel-like con la libertad
@@ -149,7 +146,7 @@ export default function UniqueDifferentiator() {
               >
                 <Card
                   sx={{
-                    backgroundColor: '#242424',
+                    backgroundColor: CARD_BG_COLOR,
                     borderRadius: 3,
                     height: '100%',
                     display: 'flex',
@@ -161,26 +158,24 @@ export default function UniqueDifferentiator() {
                   }}
                   elevation={6}
                 >
-                  {/* Ícono */}
                   <Box sx={{ mb: 2 }}>{bloque.icono}</Box>
-
-                  {/* Título */}
                   <Typography
-                    variant="h6"
                     component="h3"
-                    fontWeight="bold"
-                    sx={{ mb: 2, color: '#fff' }}
+                    sx={{
+                      fontWeight: 'bold',
+                      mb: 2,
+                      color: TEXT_COLOR,
+                      fontSize: '1.2rem',
+                    }}
                   >
                     {bloque.titulo}
                   </Typography>
-
-                  {/* Texto descriptivo */}
                   <Typography
-                    variant="body2"
                     component="p"
                     sx={{
-                      color: '#fff',
+                      color: TEXT_COLOR,
                       lineHeight: 1.6,
+                      fontSize: PARAGRAPH_FONT_SIZE,
                     }}
                   >
                     {bloque.texto}
@@ -195,6 +190,7 @@ export default function UniqueDifferentiator() {
       {/* SECCIÓN INTERMEDIA */}
       <Box
         component="section"
+        aria-label="Enfoque centrado en calidad"
         sx={{
           mt: 10,
           mb: 10,
@@ -203,7 +199,6 @@ export default function UniqueDifferentiator() {
           backgroundColor: '#1F1F1F',
           position: 'relative',
         }}
-        aria-label="Enfoque centrado en calidad"
       >
         <motion.div
           initial={{ opacity: 0, x: isMobile ? 0 : -60 }}
@@ -212,7 +207,7 @@ export default function UniqueDifferentiator() {
           transition={{ duration: 0.8 }}
         >
           <Grid container spacing={4} alignItems="center">
-            {/* Imagen o gráfico decorativo */}
+            {/* Imagen decorativa para desktop */}
             {!isMobile && (
               <Grid item xs={12} md={6}>
                 <CardMedia
@@ -227,20 +222,27 @@ export default function UniqueDifferentiator() {
                 />
               </Grid>
             )}
-
             {/* Texto y lista de fortalezas */}
             <Grid item xs={12} md={isMobile ? 12 : 6}>
               <Typography
-                variant="h4"
                 component="h3"
-                fontWeight="bold"
-                sx={{ color: '#FF00AA', mb: 2 }}
+                sx={{
+                  fontWeight: 'bold',
+                  mb: 2,
+                  color: HEADING_COLOR,
+                  fontSize: SUBHEADING_FONT_SIZE,
+                }}
               >
                 Enfoque centrado en calidad
               </Typography>
               <Typography
                 component="p"
-                sx={{ mb: 3, color: '#fff', fontSize: '1rem', lineHeight: 1.7 }}
+                sx={{
+                  mb: 3,
+                  color: TEXT_COLOR,
+                  fontSize: PARAGRAPH_FONT_SIZE,
+                  lineHeight: 1.7,
+                }}
               >
                 Talberos está dirigido a quienes buscan un producto sólido desde la base:
                 código limpio, modularidad, escalabilidad y seguridad sin rodeos.
@@ -249,38 +251,38 @@ export default function UniqueDifferentiator() {
               <List>
                 <ListItem disableGutters>
                   <ListItemIcon sx={{ minWidth: 'auto', mr: 1 }}>
-                    <CheckCircleOutlineIcon sx={{ color: '#FF00AA' }} />
+                    <CheckCircleOutlineIcon sx={{ color: HEADING_COLOR }} aria-hidden="true" />
                   </ListItemIcon>
                   <ListItemText
                     primary="Clean Code y Documentación Clara"
-                    primaryTypographyProps={{ sx: { color: '#fff' } }}
+                    primaryTypographyProps={{ sx: { color: TEXT_COLOR } }}
                   />
                 </ListItem>
                 <ListItem disableGutters>
                   <ListItemIcon sx={{ minWidth: 'auto', mr: 1 }}>
-                    <CheckCircleOutlineIcon sx={{ color: '#FF00AA' }} />
+                    <CheckCircleOutlineIcon sx={{ color: HEADING_COLOR }} aria-hidden="true" />
                   </ListItemIcon>
                   <ListItemText
                     primary="Arquitectura Modular (Principios SOLID)"
-                    primaryTypographyProps={{ sx: { color: '#fff' } }}
+                    primaryTypographyProps={{ sx: { color: TEXT_COLOR } }}
                   />
                 </ListItem>
                 <ListItem disableGutters>
                   <ListItemIcon sx={{ minWidth: 'auto', mr: 1 }}>
-                    <CheckCircleOutlineIcon sx={{ color: '#FF00AA' }} />
+                    <CheckCircleOutlineIcon sx={{ color: HEADING_COLOR }} aria-hidden="true" />
                   </ListItemIcon>
                   <ListItemText
                     primary="Experiencia Excel-like y Flexibilidad React"
-                    primaryTypographyProps={{ sx: { color: '#fff' } }}
+                    primaryTypographyProps={{ sx: { color: TEXT_COLOR } }}
                   />
                 </ListItem>
                 <ListItem disableGutters>
                   <ListItemIcon sx={{ minWidth: 'auto', mr: 1 }}>
-                    <CheckCircleOutlineIcon sx={{ color: '#FF00AA' }} />
+                    <CheckCircleOutlineIcon sx={{ color: HEADING_COLOR }} aria-hidden="true" />
                   </ListItemIcon>
                   <ListItemText
                     primary="Seguridad y Rendimiento en Cada Capa"
-                    primaryTypographyProps={{ sx: { color: '#fff' } }}
+                    primaryTypographyProps={{ sx: { color: TEXT_COLOR } }}
                   />
                 </ListItem>
               </List>
@@ -292,6 +294,7 @@ export default function UniqueDifferentiator() {
       {/* RESULTADO FINAL */}
       <Box
         component="section"
+        aria-label="Resultado de elegir Talberos"
         sx={{
           mt: 10,
           mb: 4,
@@ -299,7 +302,6 @@ export default function UniqueDifferentiator() {
           maxWidth: '900px',
           mx: 'auto',
         }}
-        aria-label="Resultado de elegir Talberos"
       >
         <motion.div
           initial={{ opacity: 0, y: 40 }}
@@ -307,26 +309,30 @@ export default function UniqueDifferentiator() {
           viewport={{ once: true }}
           transition={{ duration: 0.8, delay: 0.3 }}
         >
-          <StarOutlineIcon sx={{ color: '#FF00AA', fontSize: 60, mb: 2 }} />
+          <StarOutlineIcon sx={{ color: HEADING_COLOR, fontSize: 60, mb: 2 }} aria-hidden="true" />
           <Typography
-            variant="h4"
             component="h3"
-            fontWeight="bold"
-            sx={{ color: '#FF00AA', mb: 3 }}
+            sx={{
+              fontWeight: 'bold',
+              mb: 3,
+              color: HEADING_COLOR,
+              fontSize: SUBHEADING_FONT_SIZE,
+            }}
           >
             El resultado de elegir Talberos
           </Typography>
           <Typography
             component="p"
             sx={{
-              color: '#fff',
-              fontSize: '1.1rem',
+              color: TEXT_COLOR,
+              fontSize: PARAGRAPH_FONT_SIZE,
               lineHeight: 1.7,
               px: { xs: 2, md: 0 },
             }}
           >
             Una librería verdaderamente diferenciada: <em>abierta, escalable y con seguridad incorporada</em>.
-            Olvídate de parches improvisados: empieza con Talberos y ahorra tiempo, dinero y dolores de cabeza en el futuro.
+            Olvídate de parches improvisados: empieza con Talberos y ahorra tiempo, dinero y
+            dolores de cabeza en el futuro.
           </Typography>
         </motion.div>
       </Box>

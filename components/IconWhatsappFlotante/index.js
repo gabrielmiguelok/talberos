@@ -26,7 +26,7 @@
  *   - Este código se ofrece con fines educativos bajo licencia MIT.
  */
 
-import React, { useState, useRef, useEffect, useLayoutEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Box,
   AppBar,
@@ -42,6 +42,15 @@ import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import { motion } from "framer-motion";
 import { useDrag } from "@use-gesture/react";
 import { animated, useSpring } from "@react-spring/web";
+
+/* ==========================================================================
+   0) HOOK isomórfico: useIsomorphicLayoutEffect
+   ==========================================================================
+   Este hook evita warnings en SSR. Emplea useLayoutEffect únicamente
+   en el cliente y useEffect en el servidor.
+   ========================================================================== */
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
 
 /* ==========================================================================
    1) CONFIGURACIONES DE ESTILO Y CONSTANTES
@@ -89,6 +98,15 @@ const MARGIN_DESKTOP = 20;
 /* ==========================================================================
    2) COMPONENTE ChatModal (uso interno)
    ========================================================================== */
+
+/**
+ * @function ChatModal
+ * @description Muestra un modal de chat con un input para enviar mensajes a un
+ *   número de WhatsApp y un botón para abrir un repositorio en GitHub.
+ * @param {object} props - Propiedades del componente.
+ * @param {boolean} props.isEnglish - Cambia el idioma del modal.
+ * @param {Function} props.onClose - Función para cerrar el modal.
+ */
 function ChatModal({ onClose, isEnglish }) {
   // Mensajes y placeholders de texto multilenguaje
   const WELCOME_MESSAGE = isEnglish
@@ -107,7 +125,9 @@ function ChatModal({ onClose, isEnglish }) {
   const [userMessage, setUserMessage] = useState("");
   const messagesEndRef = useRef(null);
 
-  // Autoscroll cuando cambia el mensaje (ej. animación de chat)
+  /**
+   * @description Autoscroll cuando cambia el mensaje (ej. animación de chat).
+   */
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -115,7 +135,8 @@ function ChatModal({ onClose, isEnglish }) {
   }, [userMessage]);
 
   /**
-   * Envía el mensaje a WhatsApp (abriendo enlace con api.whatsapp.com).
+   * @function handleSend
+   * @description Envía el mensaje a WhatsApp (abriendo enlace con api.whatsapp.com).
    */
   const handleSend = () => {
     try {
@@ -124,7 +145,9 @@ function ChatModal({ onClose, isEnglish }) {
       }
       const finalMsg = userMessage.trim();
       if (finalMsg.length > 0) {
-        const url = `https://api.whatsapp.com/send?phone=${PHONE_NUMBER}&text=${encodeURIComponent(finalMsg)}`;
+        const url = `https://api.whatsapp.com/send?phone=${PHONE_NUMBER}&text=${encodeURIComponent(
+          finalMsg
+        )}`;
         window.open(url, "_blank");
       }
     } catch (error) {
@@ -133,7 +156,9 @@ function ChatModal({ onClose, isEnglish }) {
   };
 
   /**
-   * Permite enviar el mensaje al presionar Enter.
+   * @function handleKeyDown
+   * @description Permite enviar el mensaje al presionar Enter.
+   * @param {object} e - Evento de teclado.
    */
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
@@ -143,7 +168,8 @@ function ChatModal({ onClose, isEnglish }) {
   };
 
   /**
-   * Abre el repositorio en GitHub en otra pestaña.
+   * @function handleOpenRepo
+   * @description Abre el repositorio en GitHub en otra pestaña.
    */
   const handleOpenRepo = () => {
     try {
@@ -298,9 +324,13 @@ function ChatModal({ onClose, isEnglish }) {
 /* ==========================================================================
    3) COMPONENTE FloatingChatIcon interno (WhatsApp)
    ========================================================================== */
+
 /**
- * Ícono flotante de WhatsApp que permite arrastrar y soltar (drag & drop).
- * Se muestra por defecto en la esquina inferior izquierda.
+ * @function FloatingChatIcon
+ * @description Ícono flotante de WhatsApp que permite arrastrar y soltar (drag & drop).
+ *   Se muestra por defecto en la esquina inferior izquierda.
+ * @param {object} props - Propiedades del componente.
+ * @param {Function} props.onClick - Función para abrir el modal de chat.
  */
 function FloatingChatIcon({ onClick }) {
   const iconRef = useRef(null);
@@ -313,7 +343,9 @@ function FloatingChatIcon({ onClick }) {
   const [style, api] = useSpring(() => ({ x: 0, y: 0 }));
   const [isSelected, setIsSelected] = useState(false);
 
-  // Actualiza dimensiones de la ventana
+  /**
+   * @description Actualiza dimensiones de la ventana al redimensionar
+   */
   useEffect(() => {
     function updateSize() {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight });
@@ -324,10 +356,12 @@ function FloatingChatIcon({ onClick }) {
   }, []);
 
   /**
-   * Calcula posición inicial en la esquina inferior izquierda.
+   * @description Calcula posición inicial en la esquina inferior izquierda
+   *   después de montar el ícono, solo en el cliente (evitando warnings en SSR).
    */
-  useLayoutEffect(() => {
-    if (iconRef.current) {
+  useIsomorphicLayoutEffect(() => {
+    // Verifica que estemos en el cliente
+    if (iconRef.current && typeof window !== "undefined") {
       requestAnimationFrame(() => {
         const rect = iconRef.current.getBoundingClientRect();
         const measuredWidth = rect.width || ICON_SIZE;
@@ -351,7 +385,9 @@ function FloatingChatIcon({ onClick }) {
     }
   }, [api]);
 
-  // Cierra la selección si se hace click/touch fuera del ícono
+  /**
+   * @description Cierra la selección si se hace click/touch fuera del ícono
+   */
   useEffect(() => {
     function handleClickOutside(e) {
       if (isSelected && iconRef.current && !iconRef.current.contains(e.target)) {
@@ -367,8 +403,8 @@ function FloatingChatIcon({ onClick }) {
   }, [isSelected]);
 
   /**
-   * Configura la lógica de arrastre con use-gesture.
-   * Detecta "tap" si el desplazamiento es menor a TAP_THRESHOLD.
+   * @description Configura la lógica de arrastre con use-gesture.
+   *   Detecta "tap" si el desplazamiento es menor a TAP_THRESHOLD.
    */
   const bind = useDrag(
     ({ offset: [ox, oy], first, last, movement: [mx, my] }) => {
@@ -447,14 +483,21 @@ function FloatingChatIcon({ onClick }) {
    ========================================================================== */
 
 /**
- * Componente contenedor que orquesta el ícono flotante de WhatsApp y el modal.
- * - Muestra el ícono flotante en la esquina inferior izquierda.
- * - Al hacer tap/click en él, se abre el modal; oculta el ícono mientras tanto.
- * - Cambia de idioma con la prop isEnglish (opcional).
+ * @function ChatWhatsAppFloat
+ * @description Componente contenedor que orquesta el ícono flotante de WhatsApp y el modal.
+ *   - Muestra el ícono flotante en la esquina inferior izquierda.
+ *   - Al hacer tap/click en él, se abre el modal; oculta el ícono mientras tanto.
+ *   - Cambia de idioma con la prop isEnglish (opcional).
+ * @param {object} props - Propiedades del componente.
+ * @param {boolean} [props.isEnglish=false] - Para mostrar textos en inglés o español.
  */
 export function ChatWhatsAppFloat({ isEnglish = false }) {
   const [isOpen, setIsOpen] = useState(false);
 
+  /**
+   * @function handleToggleChat
+   * @description Abre/cierra el modal de chat y notifica a dataLayer.
+   */
   const handleToggleChat = () => {
     try {
       if (typeof window !== "undefined" && window.dataLayer) {
