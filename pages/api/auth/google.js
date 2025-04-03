@@ -1,237 +1,93 @@
 /**
- * MIT License
+ * =============================================================================
+ * Licencia MIT
  * -----------
- * Este código está diseñado siguiendo principios SOLID y clean code, con un
- * enfoque educativo y didáctico. Se ha separado la lógica en clases y funciones
- * que permiten una mayor cohesión y reducen el acoplamiento, favoreciendo la
- * escalabilidad y la facilidad de mantenimiento.
+ * Se concede permiso, libre de cargo, a cualquier persona que obtenga una copia
+ * de este software y de los archivos de documentación asociados (el "Software"),
+ * para tratar en el Software sin restricción, incluyendo sin limitación los
+ * derechos de usar, copiar, modificar, fusionar, publicar, distribuir,
+ * sublicenciar y/o vender copias del Software, y para permitir a las personas
+ * a quienes se les proporcione el Software que lo hagan, sujeto a las siguientes
+ * condiciones:
  *
+ * El aviso de copyright anterior y este aviso de permiso se incluirán en todas
+ * las copias o partes sustanciales del Software.
+ *
+ * EL SOFTWARE SE PROPORCIONA "TAL CUAL", SIN GARANTÍA DE NINGÚN TIPO, EXPRESA
+ * O IMPLÍCITA, INCLUYENDO PERO NO LIMITADO A GARANTÍAS DE COMERCIABILIDAD,
+ * IDONEIDAD PARA UN PROPÓSITO PARTICULAR Y NO INFRACCIÓN. EN NINGÚN CASO LOS
+ * AUTORES O TITULARES DE LOS DERECHOS DE AUTOR SERÁN RESPONSABLES DE NINGUNA
+ * RECLAMACIÓN, DAÑO U OTRA RESPONSABILIDAD, YA SEA EN UNA ACCIÓN CONTRACTUAL,
+ * AGRAVIO O DE OTRA MANERA, QUE SURJA DE O EN CONEXIÓN CON EL SOFTWARE O EL
+ * USO U OTROS TRATOS EN EL SOFTWARE.
+ * =============================================================================
+ *
+ * Punto de entrada para manejar la autenticación con Google en una
+ * aplicación Next.js. Aplica los servicios y repositorios de manera
+ * desacoplada, siguiendo los principios de SRP, SoC y DIP.
  */
 
-import { google } from 'googleapis';
-import mysql from 'mysql2/promise';
 import { serialize } from 'cookie';
 import crypto from 'crypto';
+import ServicioGoogleAuth from '../../../services/GoogleAuthService';
+import RepositorioSesionesUsuario from '../../../repositories/RepositorioSesionesUsuario';
 
 /**
- * Determina si la aplicación se está ejecutando en modo de producción.
- * @type {boolean}
- */
-const isProduction = process.env.NODE_ENV === 'production';
-
-/**
- * Clase encargada de la configuración y flujo de autenticación con Google.
- * Asegura la correcta obtención y verificación de tokens, así como
- * la adquisición de información de usuario.
- */
-class GoogleAuthService {
-  /**
-   * Crea una instancia del servicio de autenticación con Google.
-   * @param {string} clientId - ID de cliente de Google OAuth.
-   * @param {string} clientSecret - Secreto de cliente de Google OAuth.
-   * @param {string} redirectUri - URI de redirección establecida en Google Developer Console.
-   */
-  constructor(clientId, clientSecret, redirectUri) {
-    this.oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
-  }
-
-  /**
-   * Genera la URL de autenticación de Google con los parámetros necesarios.
-   * @returns {string} - URL para redirigir al usuario y solicitar consentimiento.
-   */
-  generateAuthUrl() {
-    return this.oauth2Client.generateAuthUrl({
-      access_type: 'offline',
-      scope: ['email', 'profile'],
-      prompt: 'consent',
-    });
-  }
-
-  /**
-   * Intercambia el código de autorización por los tokens de acceso y actualiza
-   * las credenciales del cliente OAuth2.
-   * @param {string} code - Código temporal de Google OAuth.
-   * @returns {Promise<void>}
-   */
-  async getTokensAndSetCredentials(code) {
-    const { tokens } = await this.oauth2Client.getToken(code);
-    this.oauth2Client.setCredentials(tokens);
-  }
-
-  /**
-   * Obtiene la información básica del perfil de Google del usuario autenticado.
-   * @returns {Promise<{ email: string, given_name: string, family_name: string, id: string }>}
-   */
-  async getUserInfo() {
-    const oauth2 = google.oauth2({
-      auth: this.oauth2Client,
-      version: 'v2',
-    });
-    const { data } = await oauth2.userinfo.get();
-    return data;
-  }
-}
-
-/**
- * Clase encargada de manejar todas las operaciones de la base de datos
- * relacionadas con la sesión de usuarios.
- */
-class UserSessionRepository {
-  /**
-   * Inicializa el repositorio con los datos de conexión a la base de datos.
-   * No se realiza la conexión inmediatamente para mantener bajo acoplamiento.
-   */
-  constructor() {
-    this.host = process.env.DB_HOST;
-    this.user = process.env.DB_USER;
-    this.password = process.env.DB_PASSWORD;
-    this.database = process.env.DB_NAME;
-    this.tableName = 'user_sessions'; // Renombra la tabla de acuerdo a tus necesidades
-  }
-
-  /**
-   * Crea y retorna una conexión a la base de datos usando los parámetros
-   * definidos en el constructor.
-   * @returns {Promise<mysql.Connection>} - Conexión a la base de datos.
-   */
-  async createConnection() {
-    return mysql.createConnection({
-      host: this.host,
-      user: this.user,
-      password: this.password,
-      database: this.database,
-    });
-  }
-
-  /**
-   * Asegura que la tabla "user_sessions" exista en la base de datos.
-   * Si no existe, la crea con la estructura definida.
-   *
-   * @param {mysql.Connection} connection - Conexión activa a la base de datos.
-   */
-  async initializeUserSessionsTable(connection) {
-    const query = `
-      CREATE TABLE IF NOT EXISTS ${this.tableName} (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        email VARCHAR(255) NOT NULL UNIQUE,
-        google_id VARCHAR(255) NOT NULL,
-        auth_token VARCHAR(128) NOT NULL,
-        first_name VARCHAR(255),
-        last_name VARCHAR(255),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
-    `;
-    await connection.execute(query);
-  }
-
-  /**
-   * Verifica si existe un registro para un usuario con el email proporcionado.
-   * @param {mysql.Connection} connection - Conexión activa a la base de datos.
-   * @param {string} email - Correo electrónico del usuario.
-   * @returns {Promise<boolean>} - Retorna true si existe, false en caso contrario.
-   */
-  async userExists(connection, email) {
-    const [rows] = await connection.execute(
-      `SELECT id FROM ${this.tableName} WHERE email = ? LIMIT 1`,
-      [email]
-    );
-    return rows.length > 0;
-  }
-
-  /**
-   * Crea un nuevo registro para un usuario en la tabla "user_sessions".
-   * @param {mysql.Connection} connection - Conexión activa a la base de datos.
-   * @param {Object} userData - Datos del usuario.
-   * @param {string} userData.email - Correo electrónico.
-   * @param {string} userData.googleId - ID de Google.
-   * @param {string} userData.authToken - Token de autenticación generado.
-   * @param {string} userData.firstName - Nombre del usuario.
-   * @param {string} userData.lastName - Apellido del usuario.
-   */
-  async createUserSession(connection, { email, googleId, authToken, firstName, lastName }) {
-    await connection.execute(
-      `INSERT INTO ${this.tableName} (email, google_id, auth_token, first_name, last_name)
-       VALUES (?, ?, ?, ?, ?)`,
-      [email, googleId, authToken, firstName, lastName]
-    );
-  }
-
-  /**
-   * Actualiza el registro de un usuario existente en la tabla "user_sessions".
-   * @param {mysql.Connection} connection - Conexión activa a la base de datos.
-   * @param {Object} userData - Datos del usuario.
-   * @param {string} userData.email - Correo electrónico.
-   * @param {string} userData.googleId - ID de Google.
-   * @param {string} userData.authToken - Token de autenticación generado.
-   * @param {string} userData.firstName - Nombre del usuario.
-   * @param {string} userData.lastName - Apellido del usuario.
-   */
-  async updateUserSession(connection, { email, googleId, authToken, firstName, lastName }) {
-    await connection.execute(
-      `UPDATE ${this.tableName}
-         SET google_id = ?,
-             auth_token = ?,
-             first_name = ?,
-             last_name = ?
-       WHERE email = ?`,
-      [googleId, authToken, firstName, lastName, email]
-    );
-  }
-}
-
-/**
- * Handler principal para la autenticación con Google en Next.js.
- * Encargado de redirigir al flujo de autenticación o manejar el callback
- * para crear/actualizar la sesión de usuario en la base de datos y
- * configurar la cookie de sesión.
+ * Función manejadora de la ruta `/api/auth/google`.
+ * Realiza las siguientes operaciones:
+ * 1. Si no hay "code" en la query, redirige a la URL de autorización de Google.
+ * 2. Si hay "code", intercambia por tokens, obtiene la info del usuario,
+ *    crea o actualiza (sin modificar nombre/apellido si ya existe) el registro
+ *    en la base de datos, y setea una cookie de sesión.
  *
- * @param {import('next').NextApiRequest} req - Objeto Request de Next.js
- * @param {import('next').NextApiResponse} res - Objeto Response de Next.js
+ * @param {import('next').NextApiRequest} req - Objeto de solicitud HTTP.
+ * @param {import('next').NextApiResponse} res - Objeto de respuesta HTTP.
  */
 export default async function handler(req, res) {
   const { code } = req.query;
-  const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/google`;
 
-  // Instanciar servicio de autenticación de Google
-  const googleAuthService = new GoogleAuthService(
+  // Construimos la URL de retorno dinámicamente
+  const urlRetorno = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/google`;
+
+  // Instanciamos el servicio de autenticación con Google
+  const servicioGoogle = new ServicioGoogleAuth(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    redirectUri
+    urlRetorno
   );
 
-  // Si no se recibe un "code", iniciar el flujo de autenticación con Google
+  // Si no se recibió "code", iniciamos el flujo de autenticación
   if (!code) {
-    const authUrl = googleAuthService.generateAuthUrl();
-    return res.redirect(authUrl);
+    const urlAuth = servicioGoogle.generarUrlDeAutorizacion();
+    return res.redirect(urlAuth);
   }
 
   try {
-    // Obtener tokens y credenciales con el "code" proporcionado
-    await googleAuthService.getTokensAndSetCredentials(code);
+    // Intercambiamos el "code" por tokens y los configuramos en el cliente OAuth
+    await servicioGoogle.obtenerTokensYConfigurarCredenciales(code);
 
-    // Obtener información básica del usuario
-    const userInfo = await googleAuthService.getUserInfo();
+    // Obtenemos la información básica del usuario autenticado en Google
+    const userInfo = await servicioGoogle.obtenerInfoUsuario();
     const { email, given_name: firstName, family_name: lastName, id: googleId } = userInfo;
 
-    // Instanciar repositorio de sesiones de usuario
-    const userSessionRepository = new UserSessionRepository();
+    // Instanciamos el repositorio responsable de manejar la persistencia
+    const repoSesiones = new RepositorioSesionesUsuario();
 
-    // Conectar a la base de datos
-    const connection = await userSessionRepository.createConnection();
+    // Creamos la conexión a la base de datos
+    const conexion = await repoSesiones.crearConexion();
 
-    // Asegurar que la tabla "user_sessions" exista
-    await userSessionRepository.initializeUserSessionsTable(connection);
+    // Aseguramos que la tabla de sesiones exista
+    await repoSesiones.asegurarTablaSesiones(conexion);
 
-    // Generar un token aleatorio para la cookie (auth_token)
+    // Generamos un token aleatorio que usaremos como "auth_token"
     const authToken = crypto.randomBytes(64).toString('hex');
 
-    // Verificar si el usuario existe
-    const userAlreadyExists = await userSessionRepository.userExists(connection, email);
+    // Verificamos si el usuario ya está registrado
+    const usuarioExiste = await repoSesiones.existeUsuario(conexion, email);
 
-    if (!userAlreadyExists) {
-      // Crear nuevo registro para el usuario
-      await userSessionRepository.createUserSession(connection, {
+    if (!usuarioExiste) {
+      // Creamos un nuevo registro con nombre y apellido
+      await repoSesiones.crearSesionUsuario(conexion, {
         email,
         googleId,
         authToken,
@@ -239,31 +95,30 @@ export default async function handler(req, res) {
         lastName,
       });
     } else {
-      // Actualizar la sesión del usuario
-      await userSessionRepository.updateUserSession(connection, {
+      // Solo actualizamos los campos de Google ID y authToken.
+      // El nombre y el apellido NO se actualizan si ya existía.
+      await repoSesiones.actualizarSesionUsuario(conexion, {
         email,
         googleId,
         authToken,
-        firstName,
-        lastName,
       });
     }
 
-    // Configurar la cookie de autenticación
-    const cookieOptions = {
+    // Configuramos la cookie "auth_token"
+    const opcionesCookie = {
       path: '/',
       httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? 'none' : 'lax',
+      secure: servicioGoogle.esEntornoProduccion(),
+      sameSite: servicioGoogle.esEntornoProduccion() ? 'none' : 'lax',
     };
 
-    const serializedCookie = serialize('auth_token', authToken, cookieOptions);
-    res.setHeader('Set-Cookie', serializedCookie);
+    const cookieSerializada = serialize('auth_token', authToken, opcionesCookie);
+    res.setHeader('Set-Cookie', cookieSerializada);
 
-    // Cerrar la conexión a la base de datos
-    await connection.end();
+    // Cerramos la conexión a la base de datos
+    await conexion.end();
 
-    // Redirigir a la página de administración (o la ruta que desees)
+    // Redirigimos a la página de administración o a donde necesites
     res.writeHead(302, { Location: '/admin' });
     res.end();
   } catch (error) {
