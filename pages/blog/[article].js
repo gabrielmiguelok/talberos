@@ -60,13 +60,13 @@ const FALLBACK_BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
 /**
- * Imágenes fallback en /public/images/preview
+ * Imágenes fallback en /public/images/preview/
  * para usarlas cuando un post no define su propia imagen.
  */
 const FALLBACK_IMAGES = {
-  webp: '/images/preview.webp',
-  png: '/images/preview.png',
-  jpg: '/images/preview.jpg',
+  webp: '/images/preview/preview.webp',
+  png: '/images/preview/preview.png',
+  jpg: '/images/preview/preview.jpg',
 };
 
 /**
@@ -318,13 +318,6 @@ export default function BlogArticlePage({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdData) }}
         />
-
-        {/*
-          Ejemplo de favicons si deseas colocarlos aquí (alternativa a _document.js).
-          <link rel="icon" href="/favicon.ico" sizes="any" />
-          <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
-          <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16" />
-        */}
 
         {/* theme-color para navegadores móviles (modo oscuro por defecto) */}
         <meta name="theme-color" content="#1F1F1F" />
