@@ -1,30 +1,49 @@
+/************************************************************************************
+ * Archivo: /pages/admin.js
+ * LICENSE: MIT
+ *
+ * DESCRIPCIÓN:
+ * ----------------------------------------------------------------------------------
+ *   - Página de administración que muestra y edita en línea la tabla `user_sessions`.
+ *   - Convierte las fechas `created_at` y `updated_at` a string para evitar
+ *     el error de serialización en Next.js.
+ *   - Cada fila incluye `rowId` (para el frontend) y `dbId` (para la DB).
+ *   - Usa `CustomTable` (edición inline, persistencia local+remota).
+ *
+ * PRINCIPIOS SOLID APLICADOS:
+ * ----------------------------------------------------------------------------------
+ *   - SRP: Esta página sólo orquesta SSR + vista. No contiene lógica de DB adicional.
+ *   - DIP: Usa `UserSessionRepository` en getServerSideProps, sin acoplar su implementación.
+ ************************************************************************************/
+
 import React from 'react';
 import Head from 'next/head';
-import { Box, Typography, Button } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useRouter } from 'next/router';
-import CustomTable from '../components/CustomTable';
+
+// Menú o navbar
 import Menu from '../components/landing/Menu';
-import { UserSessionRepository } from '@repositories/UserSessionRepository';
-import { UserActivityRepository } from '@repositories/UserActivityRepository';
+
+// Repositorio
+import { UserSessionRepository } from '../repositories/UserSessionRepository';
+
+// Importa tu CustomTable (que tiene la edición inline)
+import CustomTable from '../components/CustomTable';
 
 /**
- * Página de administración.
- * Esta versión utiliza getServerSideProps para:
- *  - Verificar la autenticación del usuario mediante la cookie auth_token.
- *  - Obtener el email y validar que el usuario esté autorizado.
- *  - Consultar las tablas user_sessions y user_activity_logs.
- *
- * Se conserva la estética original con fondo oscuro, tipografía blanca y disposición flexible.
+ * Página de administración con edición en línea de `user_sessions`.
  *
  * @param {Object} props
- * @param {Array} props.sessions - Registros de la tabla user_sessions.
- * @param {Array} props.activities - Registros de la tabla user_activity_logs.
- * @param {string} props.userEmail - Email del usuario autenticado.
+ * @param {Array}  props.sessions  - Filas (con rowId, dbId y fechas a string)
+ * @param {string} props.userEmail - Email del usuario autenticado
  */
-function AdminPage({ sessions, activities, userEmail }) {
+export default function AdminPage({ sessions, userEmail }) {
   const router = useRouter();
 
-  // Columnas definidas para la tabla user_sessions
+  /**
+   * Columnas actuales de la tabla `user_sessions`:
+   *  - id, email, google_id, auth_token, first_name, last_name, created_at, updated_at
+   */
   const userSessionsColumns = [
     { id: 'id', accessorKey: 'id', header: 'ID', size: 60 },
     { id: 'email', accessorKey: 'email', header: 'Email', size: 220 },
@@ -32,43 +51,18 @@ function AdminPage({ sessions, activities, userEmail }) {
     { id: 'auth_token', accessorKey: 'auth_token', header: 'Auth Token', size: 300 },
     { id: 'first_name', accessorKey: 'first_name', header: 'Nombre', size: 120 },
     { id: 'last_name', accessorKey: 'last_name', header: 'Apellido', size: 120 },
-    { id: 'ip', accessorKey: 'ip', header: 'IP', size: 130 },
-    { id: 'country', accessorKey: 'country', header: 'País', size: 110 },
-    { id: 'city', accessorKey: 'city', header: 'Ciudad', size: 110 },
     { id: 'created_at', accessorKey: 'created_at', header: 'Creado', size: 160 },
     { id: 'updated_at', accessorKey: 'updated_at', header: 'Actualizado', size: 160 },
   ];
-
-  // Columnas definidas para la tabla user_activity_logs
-  const userActivitiesColumns = [
-    { id: 'id', accessorKey: 'id', header: 'ID', size: 60 },
-    { id: 'email', accessorKey: 'email', header: 'Email', size: 220 },
-    { id: 'event_type', accessorKey: 'event_type', header: 'Evento', size: 140 },
-    { id: 'process', accessorKey: 'process', header: 'Proceso', size: 100 },
-    { id: 'busqueda', accessorKey: 'busqueda', header: 'Búsqueda', size: 160 },
-    { id: 'pais', accessorKey: 'pais', header: 'País', size: 110 },
-    { id: 'ciudad', accessorKey: 'ciudad', header: 'Ciudad', size: 110 },
-    { id: 'ip', accessorKey: 'ip', header: 'IP', size: 130 },
-    { id: 'user_agent', accessorKey: 'user_agent', header: 'User-Agent', size: 250 },
-    { id: 'created_at', accessorKey: 'created_at', header: 'Creado', size: 160 },
-  ];
-
-  // Función para cerrar sesión
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      router.push('/');
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error);
-    }
-  };
 
   return (
     <>
       <Head>
         <title>Panel de administración</title>
       </Head>
+
       <Menu />
+
       <Box
         sx={{
           height: '100vh',
@@ -91,21 +85,14 @@ function AdminPage({ sessions, activities, userEmail }) {
           <Typography variant="h3" gutterBottom sx={{ color: '#FF00AA' }}>
             Panel de administración
           </Typography>
+
           <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mt: 4 }}>
             <Box sx={{ flex: 1, minWidth: 500 }}>
               <CustomTable
                 data={sessions}
                 columnsDef={userSessionsColumns}
                 themeMode="dark"
-                containerHeight="400px"
-              />
-            </Box>
-            <Box sx={{ flex: 1, minWidth: 500 }}>
-              <CustomTable
-                data={activities}
-                columnsDef={userActivitiesColumns}
-                themeMode="dark"
-                containerHeight="400px"
+                containerHeight="600px"
               />
             </Box>
           </Box>
@@ -117,19 +104,19 @@ function AdminPage({ sessions, activities, userEmail }) {
 
 /**
  * getServerSideProps:
- *  - Verifica la existencia de la cookie 'auth_token'.
- *  - Obtiene el email del usuario mediante UserSessionRepository.
- *  - Valida que el usuario esté autorizado (lista de emails permitidos).
- *  - Consulta los datos de las tablas user_sessions y user_activity_logs.
- *
- * En caso de no cumplir alguna condición, redirige al usuario a la página de login o home.
+ *  - Verifica la cookie `auth_token`.
+ *  - Obtiene email => verifica permisos.
+ *  - Consulta `user_sessions` y mapea:
+ *    - rowId => índice local (para localStorage y react-table).
+ *    - dbId => PK real en la DB (para update remoto).
+ *    - created_at / updated_at => convertidas a string con toISOString() o null.
  */
 export async function getServerSideProps(context) {
   const { req } = context;
   const cookies = req.cookies;
   const authToken = cookies.auth_token;
 
-  // Si no existe el token, redirigir al login.
+  // [1] Verificar token
   if (!authToken) {
     return {
       redirect: {
@@ -139,7 +126,7 @@ export async function getServerSideProps(context) {
     };
   }
 
-  // Instanciar el repositorio para obtener el email del usuario.
+  // [2] Obtener email
   const sessionRepo = new UserSessionRepository();
   let userEmail = null;
   try {
@@ -148,7 +135,7 @@ export async function getServerSideProps(context) {
     console.error('Error al obtener email del usuario:', error);
   }
 
-  // Lista de emails autorizados.
+  // [3] Verificar permisos
   const allowedEmails = ['ceo@synara.ar'];
   if (!userEmail || !allowedEmails.includes(userEmail)) {
     return {
@@ -159,28 +146,27 @@ export async function getServerSideProps(context) {
     };
   }
 
-  // Obtener datos de las tablas.
-  let sessions = [];
-  let activities = [];
+  // [4] Traer la data de `user_sessions`
+  let sessionsRaw = [];
   try {
-    sessions = await sessionRepo.getAllSessions();
+    sessionsRaw = await sessionRepo.getAllSessions();
   } catch (error) {
     console.error('Error al obtener user_sessions:', error);
   }
-  try {
-    const activityRepo = new UserActivityRepository();
-    activities = await activityRepo.getAllActivities();
-  } catch (error) {
-    console.error('Error al obtener user_activity_logs:', error);
-  }
+
+  // [5] Mapear cada fila para: rowId, dbId, y convertir fechas a string
+  const sessions = sessionsRaw.map((row, index) => ({
+    rowId: index,
+    dbId: row.id,
+    ...row,
+    created_at: row.created_at ? row.created_at.toISOString() : null,
+    updated_at: row.updated_at ? row.updated_at.toISOString() : null,
+  }));
 
   return {
     props: {
       sessions,
-      activities,
       userEmail,
     },
   };
 }
-
-export default AdminPage;
