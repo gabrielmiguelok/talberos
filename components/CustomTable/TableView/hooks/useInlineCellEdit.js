@@ -46,7 +46,7 @@
  ************************************************************************************/
 
 import { useState, useCallback, useContext } from 'react';
-import { TableEditContext } from '../../CustomTable';
+import { TableEditContext } from '../../../CustomTable';
 
 /**
  * useInlineCellEdit
