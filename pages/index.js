@@ -116,7 +116,7 @@ export default function IndexTalberos({ isDarkMode = false, onThemeToggle }) {
       </Head>
 
       {/* Barra de navegación (modo oscuro opcional) */}
-      <Menu isDarkMode={isDarkMode} onThemeToggle={onThemeToggle} />
+      <Menu isLightMode={isDarkMode} onThemeToggle={onThemeToggle} />
 
       <main role="main" id="main-content">
         <HeroTalberos />

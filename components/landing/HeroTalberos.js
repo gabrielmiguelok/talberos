@@ -22,12 +22,12 @@ import { motion, AnimatePresence } from "framer-motion";
 /** ---------------------------------------------------------------------------
  * CONSTANTES DE CONFIGURACIÓN (Colores, tamaños, etc.)
  * ---------------------------------------------------------------------------*/
-const HERO_BG_GRADIENT = "linear-gradient(135deg, #121212 0%, #1F1F1F 100%)";
-const HERO_TEXT_COLOR = "#FFFFFF";
-const HERO_TITLE_COLOR = "#FFFFFF";
-const HERO_DESCRIPTION_COLOR = "#DDDDDD";
-const HERO_BUTTON_BG = "#FF00AA";
-const HERO_BUTTON_BG_HOVER = "#E60099";
+const HERO_BG_GRADIENT = "linear-gradient(31135deg, #FFFFFF 60%, #1e88e5 100%)";
+const HERO_TEXT_COLOR = "#1F1F1F";
+const HERO_TITLE_COLOR = "#0d47a1";
+const HERO_DESCRIPTION_COLOR = "#1F1F1F";
+const HERO_BUTTON_BG = "#64b5f6";
+const HERO_BUTTON_BG_HOVER = "#64b5f6";
 
 const HERO_MIN_HEIGHT = "90vh";
 const HERO_MAX_WIDTH_TEXT = "700px";

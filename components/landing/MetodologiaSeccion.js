@@ -25,16 +25,16 @@ import { Code, Layers, Refresh, RocketLaunch } from '@mui/icons-material';
 /** ---------------------------------------------------------------------------
  * CONSTANTES DE CONFIGURACIÓN
  * ---------------------------------------------------------------------------*/
-const BG_GRADIENT = 'linear-gradient(135deg, #121212 0%, #1F1F1F 100%)';
-const TEXT_COLOR = '#FFFFFF';
-const HEADING_COLOR = '#FF00AA';
-const PAPER_BG_COLOR = '#242424';
+const BG_GRADIENT = 'linear-gradient(2175deg, #FFFFFF 30%, #1e88e5 150%)';
+const TEXT_COLOR = '#1F1F1F';
+const HEADING_COLOR = '#0d47a1';
+const PAPER_BG_COLOR = '#FFFFFF';
 
 const SECTION_PADDING_Y = 12;
-const SECTION_PADDING_X_MOBILE = 2;
-const SECTION_PADDING_X_DESKTOP = 6;
+const SECTION_PADDING_X_MOBILE = 0;
+const SECTION_PADDING_X_DESKTOP = 0;
 
-const HEADLINE_FONT_SIZE_DESKTOP = '2rem';
+const HEADLINE_FONT_SIZE_DESKTOP = '4rem';
 const HEADLINE_FONT_SIZE_MOBILE = '1.6rem';
 const PARAGRAPH_FONT_SIZE_DESKTOP = '1rem';
 const PARAGRAPH_FONT_SIZE_MOBILE = '0.95rem';
@@ -144,8 +144,9 @@ function HeaderContent() {
           textAlign: 'center',
           marginBottom: 8,
           color: TEXT_COLOR,
-          maxWidth: '800px',
+          maxWidth: '100%',
           marginX: 'auto',
+          marginY: 'auto',
           lineHeight: 1.7,
           fontSize: PARAGRAPH_FONT_SIZE_DESKTOP,
         }}
@@ -167,7 +168,7 @@ function MethodologyGrid({ steps, noAnimation = false }) {
       container
       spacing={6}
       component="ol"
-      sx={{ listStyle: 'none', padding: 0, margin: 0 }}
+      sx={{ listStyle: 'none', padding: 6, margin: -6 }}
     >
       {steps.map((step, index) => (
         <Grid
@@ -204,6 +205,7 @@ function MethodologyGrid({ steps, noAnimation = false }) {
                   color: HEADING_COLOR,
                   marginBottom: 2,
                   fontSize: '1.25rem',
+                  marginX: 'auto',
                 }}
               >
                 {step.title}

@@ -30,28 +30,28 @@ import CustomTable from "../CustomTable";
 /** ---------------------------------------------------------------------------
  * CONSTANTES DE CONFIGURACIÓN (Colores, tamaños, etc.)
  * ---------------------------------------------------------------------------*/
-const SECTION_BG_GRADIENT = "linear-gradient(135deg, #121212 0%, #1F1F1F 100%)";
+const SECTION_BG_GRADIENT = "linear-gradient(31135deg, #FFFFFF 60%, #1e88e5 100%)";
 const SECTION_TEXT_COLOR = "#FFFFFF";
 const SECTION_PADDING_Y = 4;
 
-const TITLE_COLOR = "#FFF";
+const TITLE_COLOR = "#0d47a1";
 const DESCRIPTION_COLOR = "#FFF";
 const DESCRIPTION_MAX_WIDTH = "700px";
 
 const PAPER_LIGHT_BG = "#f7f7f7";
 const PAPER_DARK_BG = "#242424";
 
-const SCROLL_BUTTON_BG = "rgba(255, 68, 196, 0.2)";
-const SCROLL_BUTTON_BG_HOVER = "rgba(255, 68, 196, 0.3)";
-const SCROLL_BUTTON_BORDER = "1px solid #FF44C4";
+const SCROLL_BUTTON_BG = "#64b5f6";
+const SCROLL_BUTTON_BG_HOVER = "#64b5f6";
+const SCROLL_BUTTON_BORDER = "1px solid #64b5f6";
 const SCROLL_ICON_COLOR = "#FFF";
 
 /**
  * Tamaños de tipografía en rem para un mayor control,
  * en lugar de rely on h2/h6 de MUI.
  */
-const TITLE_FONT_SIZE = "2rem";
-const SUBTITLE_FONT_SIZE = "1rem";
+const TITLE_FONT_SIZE = "6rem";
+const SUBTITLE_FONT_SIZE = "0.1rem";
 
 /**
  * Título genérico con estilo personalizable

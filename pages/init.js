@@ -74,7 +74,7 @@ const DEFAULT_PAGE_SIZE = 50;
  *   - "light" (claro)
  *   - "dark" (oscuro)
  */
-const DEFAULT_THEME_MODE = 'dark';
+const DEFAULT_THEME_MODE = 'light';
 
 /**
  * @constant {number} AUTO_COPY_DELAY

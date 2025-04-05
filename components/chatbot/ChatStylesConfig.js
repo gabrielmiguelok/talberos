@@ -20,11 +20,11 @@ import { keyframes } from '@emotion/react';
  * Usamos el mismo gradiente (#FF00AA → #1F1F1F) tanto para la barra superior
  * como para el fondo principal del chat.
  */
-const GRADIENT_BG = 'linear-gradient(121135deg, #FF00AA 20%, #1F1F1F 70%)';
+const GRADIENT_BG = 'linear-gradient(-136deg, #0d47a1 10%, #ffffff 90%)';
 
 const COLOR_MODAL_BG = GRADIENT_BG;           // Fondo principal en gradiente
 const COLOR_APPBAR_BG = GRADIENT_BG;          // Barra superior con el mismo gradiente
-const COLOR_BRAND_TITLE = '#FFFFFF';          // Texto del título (blanco)
+const COLOR_BRAND_TITLE = '#0d47a1';          // Texto del título (blanco)
 const COLOR_APPBAR_HOVER = '#FF00AA';         // Hover en la barra (rosa principal)
 const COLOR_CLOSE_BUTTON = '#FFFFFF';         // Icono de cierre en blanco
 
@@ -38,15 +38,15 @@ const COLOR_TEXTFIELD_BG = 'transparent';
 const COLOR_OPTION_BUTTON_TEXT = '#1F1F1F';
 
 // Fondos de los mensajes
-const COLOR_MESSAGE_ASSISTANT_BG = '#FCE7F3'; // Rosa clarito
-const COLOR_MESSAGE_USER_BG = '#FFD9EE';      // Rosa clarito
+const COLOR_MESSAGE_ASSISTANT_BG = '#cee9ff'; // Rosa clarito
+const COLOR_MESSAGE_USER_BG = '#cee9ff';      // Rosa clarito
 
 // Texto de los mensajes
 const COLOR_MESSAGE_TEXT = '#1F1F1F';         // Oscuro
 
 // CTA
-const COLOR_CTA_BORDER = '#FF00AA';
-const COLOR_CTA_BG = '#1F1F1F';
+const COLOR_CTA_BORDER = '#0d47a1';
+const COLOR_CTA_BG = '#0d47a1';
 
 /* -------------------------------------------------------------------------
  * DIMENSIONES Y ESPACIOS
@@ -87,10 +87,10 @@ const fadeInUp = keyframes`
  * OPCIONES (Botones)
  * -------------------------------------------------------------------------
  * Ahora definimos un degradado rosado "un poco más oscuro"
- * que los fondos #FCE7F3 / #FFD9EE de los mensajes.
+ * que los fondos #FCE7F3 / #cee9ff de los mensajes.
  */
-const OPTION_BUTTON_GRADIENT = 'linear-gradient(45deg, #F9BCD6 30%, #F5A8C9 90%)';
-const OPTION_BUTTON_GRADIENT_HOVER = 'linear-gradient(45deg, #F5A8C9 30%, #F9BCD6 90%)';
+const OPTION_BUTTON_GRADIENT = 'linear-gradient(45deg, #cee9ff 30%, #4695ff 90%)';
+const OPTION_BUTTON_GRADIENT_HOVER = 'linear-gradient(45deg, #4695ff 30%, #FFFFFF 90%)';
 const OPTION_BUTTON_BORDER_RADIUS = '20px';
 const OPTION_BUTTON_FONT_SIZE = '0.85rem';
 const OPTION_BUTTON_FONT_WEIGHT = '500';

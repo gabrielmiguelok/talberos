@@ -256,14 +256,14 @@ export default function FloatingChatIcon({ onClick }) {
         whileHover={{ scale: 1.05 }}
         whileTap={{
           scale: 0.9,
-          background: 'linear-gradient(90deg, #1F1F1F 0%, #1F1F1F 90%)',
+          background: 'linear-gradient(90deg, #FFFFFF 0%, #FFFFFF 90%)',
           borderRadius: '50%',
         }}
         style={{
           width: ICON_SIZE,
           height: ICON_SIZE,
           borderRadius: '50%',
-          background: 'linear-gradient(90deg, #1F1F1F 0%, #1F1F1F 90%)',
+          background: 'linear-gradient(90deg, #FFFFFF 0%, #FFFFFF 90%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

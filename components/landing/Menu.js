@@ -96,10 +96,10 @@ export default function Menu({
   // [B] CONSTANTES DE COLOR Y ESTILO
   // -------------------------------------------------------------------------
   // Alineado con la paleta usada en Talberos (fondos oscuros + acento magenta)
-  const NAVBAR_BACKGROUND = 'linear-gradient(135deg, #FF00AA 50%, #1F1F1F 80%)';
+  const NAVBAR_BACKGROUND = 'linear-gradient(135deg, #FFFFFF 50%, #1e88e5 80%)';
   const NAVBAR_TEXT_COLOR = '#1F1F1F';
-  const NAVBAR_BUTTON_BG = '#FF00AA';
-  const NAVBAR_HOVER_BG = '#FF00AA';
+  const NAVBAR_BUTTON_BG = '#64b5f6';
+  const NAVBAR_HOVER_BG = '#FFFFFF';
   const NAVBAR_ELEVATION = '0px 2px 8px rgba(0, 0, 0, 0.7)';
 
   // -------------------------------------------------------------------------
