@@ -15,21 +15,34 @@ import { keyframes } from '@emotion/react';
 /* -------------------------------------------------------------------------
  * CONFIGURABLE CONSTANTS (Colores principales)
  * ------------------------------------------------------------------------- */
-const COLOR_MODAL_BG = '#1F1F1F';  // Fondo principal del chat (oscuro)
-const COLOR_APPBAR_BG = 'linear-gradient(135deg, #FF00AA 50%, #1F1F1F 80%)';
-const COLOR_BRAND_TITLE = '#FFFFFF'; // Texto del título (blanco)
-const COLOR_APPBAR_HOVER = '#FF00AA';
-const COLOR_CLOSE_BUTTON = '#FFFFFF';
-const COLOR_MESSAGE_LIST_BG = COLOR_MODAL_BG;
-const COLOR_TEXTFIELD_BG = '#1F1F1F';
-const COLOR_OPTION_BUTTON_TEXT = '#1F1F1F'; // Texto de los botones (oscuro)
+
+/**
+ * Usamos el mismo gradiente (#FF00AA → #1F1F1F) tanto para la barra superior
+ * como para el fondo principal del chat.
+ */
+const GRADIENT_BG = 'linear-gradient(121135deg, #FF00AA 20%, #1F1F1F 70%)';
+
+const COLOR_MODAL_BG = GRADIENT_BG;           // Fondo principal en gradiente
+const COLOR_APPBAR_BG = GRADIENT_BG;          // Barra superior con el mismo gradiente
+const COLOR_BRAND_TITLE = '#FFFFFF';          // Texto del título (blanco)
+const COLOR_APPBAR_HOVER = '#FF00AA';         // Hover en la barra (rosa principal)
+const COLOR_CLOSE_BUTTON = '#FFFFFF';         // Icono de cierre en blanco
+
+// Mantengo el fondo de la lista de mensajes igual al container (gradiente).
+const COLOR_MESSAGE_LIST_BG = 'transparent';
+
+// El TextField quedará con el mismo gradiente de fondo o un color opaco (elige uno):
+// Si prefieres un fondo opaco, puedes usar #1F1F1F.
+// Si quieres el mismo gradiente, ponle 'transparent' o GRADIENT_BG.
+const COLOR_TEXTFIELD_BG = 'transparent';
+const COLOR_OPTION_BUTTON_TEXT = '#1F1F1F';
 
 // Fondos de los mensajes
-const COLOR_MESSAGE_ASSISTANT_BG = '#FCE7F3';
-const COLOR_MESSAGE_USER_BG = '#FFD9EE';
+const COLOR_MESSAGE_ASSISTANT_BG = '#FCE7F3'; // Rosa clarito
+const COLOR_MESSAGE_USER_BG = '#FFD9EE';      // Rosa clarito
 
 // Texto de los mensajes
-const COLOR_MESSAGE_TEXT = '#1F1F1F';
+const COLOR_MESSAGE_TEXT = '#1F1F1F';         // Oscuro
 
 // CTA
 const COLOR_CTA_BORDER = '#FF00AA';
@@ -71,12 +84,13 @@ const fadeInUp = keyframes`
 `;
 
 /* -------------------------------------------------------------------------
- * OPCIONES (Botones) - Ajustados a rosa
+ * OPCIONES (Botones)
  * -------------------------------------------------------------------------
- * Aquí definimos el degradado en "rosadito", usando #FCE7F3 y #FFD9EE
+ * Ahora definimos un degradado rosado "un poco más oscuro"
+ * que los fondos #FCE7F3 / #FFD9EE de los mensajes.
  */
-const OPTION_BUTTON_GRADIENT = 'linear-gradient(45deg, #FCE7F3 30%, #FFD9EE 90%)';
-const OPTION_BUTTON_GRADIENT_HOVER = 'linear-gradient(45deg, #FFD9EE 30%, #FCE7F3 90%)';
+const OPTION_BUTTON_GRADIENT = 'linear-gradient(45deg, #F9BCD6 30%, #F5A8C9 90%)';
+const OPTION_BUTTON_GRADIENT_HOVER = 'linear-gradient(45deg, #F5A8C9 30%, #F9BCD6 90%)';
 const OPTION_BUTTON_BORDER_RADIUS = '20px';
 const OPTION_BUTTON_FONT_SIZE = '0.85rem';
 const OPTION_BUTTON_FONT_WEIGHT = '500';
@@ -93,7 +107,8 @@ export const CHAT_MODAL_STYLES = {
     width: MODAL_WIDTH,
     height: MODAL_HEIGHT,
     maxHeight: MODAL_MAX_HEIGHT,
-    backgroundColor: COLOR_MODAL_BG,
+    // Fondo con el mismo gradiente de la barra
+    background: COLOR_MODAL_BG,
     boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
     borderTopLeftRadius: MODAL_BORDER_RADIUS,
     borderTopRightRadius: MODAL_BORDER_RADIUS,
@@ -104,7 +119,7 @@ export const CHAT_MODAL_STYLES = {
   appBar: {
     borderTopLeftRadius: `${MODAL_BORDER_RADIUS}px`,
     borderTopRightRadius: `${MODAL_BORDER_RADIUS}px`,
-    background: COLOR_APPBAR_BG, // Gradiente
+    background: COLOR_APPBAR_BG, // el mismo gradiente
   },
   toolBar: {
     minHeight: TOOLBAR_MIN_HEIGHT,
@@ -133,20 +148,22 @@ export const CHAT_MODAL_STYLES = {
     flex: 1,
     overflowY: 'auto',
     p: 1,
-    backgroundColor: COLOR_MESSAGE_LIST_BG,
+    // Hacemos que sea transparente para que se vea el gradiente del fondo
+    background: COLOR_MESSAGE_LIST_BG,
   },
   textFieldContainer: {
     display: 'flex',
     alignItems: 'center',
     borderTop: TEXTFIELD_BORDER,
     p: 1,
-    backgroundColor: COLOR_TEXTFIELD_BG,
+    background: COLOR_TEXTFIELD_BG,
   },
   textField: {
     fontSize: TEXTFIELD_FONT_SIZE,
   },
   sendButton: {
     ml: 1,
+    // Puedes dejarlo en #FF00AA fijo o combinar con el gradiente
     backgroundColor: COLOR_APPBAR_HOVER,
     color: COLOR_CLOSE_BUTTON,
     '&:hover': {
@@ -217,11 +234,11 @@ export const CHAT_OPTIONS_STYLES = {
     fontSize: OPTION_BUTTON_FONT_SIZE,
     fontWeight: OPTION_BUTTON_FONT_WEIGHT,
     borderRadius: OPTION_BUTTON_BORDER_RADIUS,
-    background: OPTION_BUTTON_GRADIENT,          // Rosadito degradado
-    color: COLOR_OPTION_BUTTON_TEXT,             // Texto oscuro
+    background: OPTION_BUTTON_GRADIENT,
+    color: COLOR_OPTION_BUTTON_TEXT,
     transition: OPTION_BUTTON_TRANSITION,
     '&:hover': {
-      background: OPTION_BUTTON_GRADIENT_HOVER,  // Rosadito invertido
+      background: OPTION_BUTTON_GRADIENT_HOVER,
       transform: 'scale(1.02)',
     },
   },
