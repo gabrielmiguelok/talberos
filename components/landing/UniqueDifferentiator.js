@@ -166,6 +166,7 @@ export default function UniqueDifferentiator() {
         py: { xs: 8, md: 12 },
         px: { xs: 2, md: 6 },
         boxSizing: "border-box",
+        userSelect: "none",
       }}
     >
       {/* Contenedor interno para centrar contenido */}
@@ -186,6 +187,7 @@ export default function UniqueDifferentiator() {
                 mb: MAIN_HEADING_MARGIN_BOTTOM,
                 color: UNIQUE_DIFF_TITLE_COLOR,
                 fontSize: MAIN_HEADING_FONT_SIZE,
+
               }}
             >
               ¿Por qué Talberos es único?

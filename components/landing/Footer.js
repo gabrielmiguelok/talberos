@@ -205,6 +205,7 @@ export default function Footer() {
                       fontWeight: SHARED_BIG_TEXT_WEIGHT,
                       color: FOOTER_HEADING_COLOR,
                       m: 0,
+                      userSelect: "none",
                     }}
                   >
                     Talberos LIBRE!
@@ -248,6 +249,7 @@ export default function Footer() {
                 color: MIDDLE_TEXT_COLOR,
                 lineHeight: 1.2,
                 maxWidth: MIDDLE_TEXT_MAX_WIDTH,
+                userSelect: "none",
               }}
             >
               Porque es mejor dejar atrás el pasado y construir un nuevo futuro
@@ -285,6 +287,7 @@ export default function Footer() {
                   fontSize: FOOTER_LINK_FONT_SIZE,
                   lineHeight: FOOTER_LINK_LINE_HEIGHT,
                   color: FOOTER_LINK_COLOR,
+                  userSelect: "none",
                   textDecoration: "none",
                   "&:hover": { textDecoration: "underline" },
                 }}
@@ -310,6 +313,7 @@ export default function Footer() {
               mt: { xs: 2, md: 3 },
               display: "flex",
               justifyContent: "center",
+              userSelect: "none",
               ...POSICION_FILA_4,
             }}
           >
@@ -323,6 +327,7 @@ export default function Footer() {
                   rel="noopener noreferrer"
                   sx={{
                     color: FOOTER_LINK_COLOR,
+                    userSelect: "none",
                     "&:hover": { opacity: 0.8 },
                   }}
                   aria-label={social.label}
@@ -351,6 +356,7 @@ export default function Footer() {
                 fontSize: COPYRIGHT_FONT_SIZE,
                 color: FOOTER_TEXT_COLOR,
                 opacity: COPYRIGHT_OPACITY,
+                userSelect: "none",
                 mb: 0.5,
               }}
             >
@@ -362,6 +368,7 @@ export default function Footer() {
                 fontSize: COPYRIGHT_FONT_SIZE,
                 color: FOOTER_TEXT_COLOR,
                 opacity: COPYRIGHT_OPACITY,
+                userSelect: "none",
               }}
             >
               Código bajo licencia MIT
