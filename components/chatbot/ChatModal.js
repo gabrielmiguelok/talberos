@@ -116,8 +116,8 @@ export default function ChatModal({ onClose }) {
         <Toolbar variant="dense" sx={CHAT_MODAL_STYLES.toolBar}>
           <Box sx={CHAT_MODAL_STYLES.brandBox}>
             <Box sx={CHAT_MODAL_STYLES.brandImageContainer}>
-              {/* Cambia /logo.png por la ruta de tu logo */}
-              <Image src="/logo.png" alt="Talberos Logo" width={28} height={28} />
+              {/* Cambia /chat.png por la ruta de tu logo */}
+              <Image src="/chat.png" alt="Talberos Logo" width={28} height={28} />
             </Box>
             <Typography variant="subtitle1" sx={CHAT_MODAL_STYLES.brandTitle}>
               Talberos LIBRE

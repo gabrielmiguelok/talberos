@@ -273,7 +273,7 @@ export default function FloatingChatIcon({ onClick }) {
       >
         <Box
           component="img"
-          src="/chat.png"
+          src="/logo.png"
           alt="Chat Icon"
           sx={{
             width: ICON_SIZE * 0.6,
