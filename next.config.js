@@ -104,7 +104,7 @@ module.exports = withBundleAnalyzer({
   images: {
     // Uso de WebP para optimizar las imágenes.
     formats: ['image/webp'],
-    domains: ['example.com', 'images.example.org'],
+    domains: ['talberos.tech'],
   },
 
   i18n: {

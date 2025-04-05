@@ -1,102 +1,101 @@
+"use client";
 /************************************************************************************************
  * FILE: ./pages/blog/[article].js
  * LICENSE: MIT
  *
  * DESCRIPCIÓN:
  *   - Página dinámica para renderizar artículos .md o .mdx desde /blogs en Talberos.
- *   - Si el artículo no define una imagen en frontmatter, se usan fallbacks (preview.webp, .png, .jpg).
- *   - Incorpora SEO avanzado (Open Graph, Twitter), con múltiples formatos de imagen para
- *     maximizar compatibilidad.
- *   - Aplica SSG (getStaticPaths & getStaticProps) para prerenderizar cada artículo.
- *   - Usa next/image para optimizar la imagen principal.
- *   - Mantiene principios SOLID y Clean Code.
+ *   - Aplica la misma paleta y estilo que HeroTalberos y UniqueDifferentiator, con un gradiente
+ *     de fondo y colores de texto en HEX (#rrggbb).
+ *   - Integra SEO avanzado, fallbacks de imagen, y genera rutas estáticas (SSG).
  ************************************************************************************************/
 
-import React, { useState, useEffect } from 'react';
-import Head from 'next/head';
-import fs from 'fs/promises';
-import path from 'path';
-import matter from 'gray-matter';
-import { serialize } from 'next-mdx-remote/serialize';
-import { MDXRemote } from 'next-mdx-remote';
-import { Box, Typography, useMediaQuery } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import dynamic from 'next/dynamic';
-import { useRouter } from 'next/router';
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkGfm from 'remark-gfm';
-import remarkHtml from 'remark-html';
-import Image from 'next/image';
+import React, { useState, useEffect } from "react";
+import Head from "next/head";
+import fs from "fs/promises";
+import path from "path";
+import matter from "gray-matter";
+import { serialize } from "next-mdx-remote/serialize";
+import { MDXRemote } from "next-mdx-remote";
+import { Box, Typography, useMediaQuery } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/router";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import remarkGfm from "remark-gfm";
+import remarkHtml from "remark-html";
+import Image from "next/image";
 
-/** ------------------------- CONSTANTES DE CONFIGURACIÓN -------------------------------------- */
-
-// Carpeta donde residen los .md y .mdx
-const BLOG_FOLDER_NAME = 'blogs';
-
-// Extensiones posibles
-const FILE_EXTENSION_MD = '.md';
-const FILE_EXTENSION_MDX = '.mdx';
-
-// Estilos / diseño
-const ARTICLE_CONTAINER_MAX_WIDTH = 1200;
-const ARTICLE_CONTAINER_PADDING_TOP = 10;
-const ARTICLE_CONTAINER_PADDING_SIDE = 3;
-const ARTICLE_TITLE_FONT_SIZE = '2.5rem';
-const ARTICLE_CONTAINER_BOX_SHADOW = 7;
-const ARTICLE_CONTAINER_BORDER_RADIUS = 0;
-
-const BACKGROUND_COLOR = '#121212';
-const TEXT_COLOR = '#FFFFFF';
-const TITLE_COLOR = '#FF00AA';
-const SUBTITLE_COLOR = '#CCC';
-const CARD_BG_COLOR = '#1F1F1F';
-
-// Variables SEO y fallback
-const FALLBACK_TITLE = 'Artículo sin título';
-const FALLBACK_DESCRIPTION = 'Artículo de blog en Talberos';
-const FALLBACK_AUTHOR = 'Talberos Team';
-const FALLBACK_BASE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-
-/**
- * Imágenes fallback en /public/images/preview/
- * para usarlas cuando un post no define su propia imagen.
- */
-const FALLBACK_IMAGES = {
-  webp: '/images/preview/preview.webp',
-  png: '/images/preview/preview.png',
-  jpg: '/images/preview/preview.jpg',
-};
-
-/**
- * Palabras clave base que siempre se añaden a las del frontmatter
- */
-const DEFAULT_KEYWORDS = ['Talberos', 'tableros'];
-
-/**
- * IMPORT DINÁMICO:
- * Cargamos el Menu sin SSR para poder usar hooks de cliente (useState, etc.)
- * en su implementación, mejorando además la performance inicial del SSR.
- */
-const Menu = dynamic(() => import('../../components/landing/Menu'), {
+/** ---------------------------------------------------------------------------------------------
+ * IMPORT DINÁMICO: Cargamos el Menu sin SSR para poder usar hooks de cliente (useState, etc.)
+ * -------------------------------------------------------------------------------------------*/
+const Menu = dynamic(() => import("../../components/landing/Menu"), {
   ssr: false,
 });
 
-/** ------------------------- STATIC GENERATION FUNCTIONS --------------------------------------- */
+/** ---------------------------------------------------------------------------------------------
+ * CONSTANTES DE CONFIGURACIÓN (Misma paleta / estilo del Hero y otros componentes)
+ * -------------------------------------------------------------------------------------------*/
 
-/**
- * Genera rutas estáticas para todos los archivos .md o .mdx en /blogs
- */
+/** Fondos y colores principales */
+const ARTICLE_BG_GRADIENT = "linear-gradient(135deg, #FFFFFF 30%, #1e88e5 100%)";
+const ARTICLE_TEXT_COLOR = "#1F1F1F";
+const ARTICLE_TITLE_COLOR = "#0d47a1";
+const ARTICLE_SUBTITLE_COLOR = "#555555";
+const ARTICLE_FALLBACK_TEXT_COLOR = "#666666"; // Para pies de página o fecha
+const ARTICLE_CODE_BG_COLOR = "#FFFFFF";
+const ARTICLE_BLOCKQUOTE_COLOR = "#cccccc";
+
+/** Contenedor y layout */
+const ARTICLE_CONTAINER_MAX_WIDTH = 1200;
+const ARTICLE_CONTAINER_PADDING_TOP = 10; // se usa para spacing top
+const ARTICLE_CONTAINER_PADDING_SIDE = 3; // se usa para spacing lateral
+const ARTICLE_CONTAINER_BOX_SHADOW = 3;   // leve sombra
+const ARTICLE_CONTAINER_BORDER_RADIUS = 0;
+const ARTICLE_HEADER_MARGIN_BOTTOM = "2rem";
+const ARTICLE_HEADER_MARGIN_TOP = "2rem";
+
+/** Tipografía general */
+const ARTICLE_TITLE_FONT_SIZE = "2.5rem"; // Títulos de artículos
+const ARTICLE_TITLE_FONT_WEIGHT = "bold";
+const ARTICLE_SUBTITLE_FONT_SIZE = "1.2rem";
+
+/** Blockquote y código */
+const ARTICLE_BLOCKQUOTE_BORDER_SIZE = "4px";
+const ARTICLE_BLOCKQUOTE_BORDER_COLOR = ARTICLE_TITLE_COLOR;
+
+/** Fallback de imágenes */
+const FALLBACK_IMAGE_WEBP = "/images/preview/preview.webp";
+const FALLBACK_IMAGE_PNG = "/images/preview/preview.png";
+const FALLBACK_IMAGE_JPG = "/images/preview/preview.jpg";
+
+/** Datos SEO por defecto */
+const FALLBACK_TITLE = "Artículo sin título";
+const FALLBACK_DESCRIPTION = "Artículo de blog en Talberos";
+const FALLBACK_AUTHOR = "Talberos Team";
+const DEFAULT_KEYWORDS = ["Talberos", "tableros"];
+const FALLBACK_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+const BLOG_FOLDER_NAME = "blogs"; // Carpeta donde residen los .md / .mdx
+
+/** Extensiones de archivos soportadas */
+const FILE_EXTENSION_MD = ".md";
+const FILE_EXTENSION_MDX = ".mdx";
+
+/** ---------------------------------------------------------------------------------------------
+ * getStaticPaths: Genera rutas estáticas para archivos .md o .mdx en /blogs
+ * -------------------------------------------------------------------------------------------*/
 export async function getStaticPaths() {
   const blogsDir = path.join(process.cwd(), BLOG_FOLDER_NAME);
   const filenames = await fs.readdir(blogsDir);
 
   const paths = filenames
-    .filter((file) => file.endsWith(FILE_EXTENSION_MD) || file.endsWith(FILE_EXTENSION_MDX))
+    .filter(
+      (file) => file.endsWith(FILE_EXTENSION_MD) || file.endsWith(FILE_EXTENSION_MDX)
+    )
     .map((file) => ({
       params: {
-        article: file.replace(/\.(md|mdx)$/, ''),
+        article: file.replace(/\.(md|mdx)$/, ""),
       },
     }));
 
@@ -106,26 +105,33 @@ export async function getStaticPaths() {
   };
 }
 
-/**
- * Lee y procesa un artículo (MD o MDX) desde la carpeta /blogs.
- * Devuelve props que serán inyectadas en el componente de página.
- */
+/** ---------------------------------------------------------------------------------------------
+ * getStaticProps: Lee y procesa un artículo (MD o MDX) desde la carpeta /blogs.
+ * -------------------------------------------------------------------------------------------*/
 export async function getStaticProps({ params }) {
   const { article } = params;
-  const filePathMdx = path.join(process.cwd(), BLOG_FOLDER_NAME, `${article}${FILE_EXTENSION_MDX}`);
-  const filePathMd = path.join(process.cwd(), BLOG_FOLDER_NAME, `${article}${FILE_EXTENSION_MD}`);
+  const filePathMdx = path.join(
+    process.cwd(),
+    BLOG_FOLDER_NAME,
+    `${article}${FILE_EXTENSION_MDX}`
+  );
+  const filePathMd = path.join(
+    process.cwd(),
+    BLOG_FOLDER_NAME,
+    `${article}${FILE_EXTENSION_MD}`
+  );
 
   let fileContent = null;
   let isMdx = false;
 
   // Intentamos leer .mdx primero
   try {
-    fileContent = await fs.readFile(filePathMdx, 'utf8');
+    fileContent = await fs.readFile(filePathMdx, "utf8");
     isMdx = true;
   } catch (errMdx) {
     // Si falla, intentamos .md
     try {
-      fileContent = await fs.readFile(filePathMd, 'utf8');
+      fileContent = await fs.readFile(filePathMd, "utf8");
     } catch (errMd) {
       // No hay ni .mdx ni .md -> 404
       return { notFound: true };
@@ -137,7 +143,7 @@ export async function getStaticProps({ params }) {
 
   // Procesamos a MDX o MD->HTML
   let mdxSource = null;
-  let htmlContent = '';
+  let htmlContent = "";
 
   if (isMdx) {
     // Contenido MDX
@@ -161,10 +167,9 @@ export async function getStaticProps({ params }) {
   const pageUrl = `${FALLBACK_BASE_URL}/blog/${article}`;
 
   // Verificamos si la imagen (frontmatter.image) existe en /public
-  // De lo contrario, guardamos null y luego usaremos fallback en la view.
   let finalImageURL = null;
   if (data.image) {
-    const localImagePath = path.join(process.cwd(), 'public', data.image);
+    const localImagePath = path.join(process.cwd(), "public", data.image);
     try {
       await fs.access(localImagePath); // Comprueba que el archivo existe
       finalImageURL = FALLBACK_BASE_URL + data.image;
@@ -175,23 +180,22 @@ export async function getStaticProps({ params }) {
 
   // Estructura JSON-LD (BlogPosting) para SEO
   const jsonLdData = {
-    '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
     headline: data.title || FALLBACK_TITLE,
     description: data.description || FALLBACK_DESCRIPTION,
     author: {
-      '@type': 'Person',
+      "@type": "Person",
       name: data.author || FALLBACK_AUTHOR,
     },
     mainEntityOfPage: {
-      '@type': 'WebPage',
-      '@id': pageUrl,
+      "@type": "WebPage",
+      "@id": pageUrl,
     },
     keywords: data.keywords || [],
-    datePublished: data.date || '',
-    dateModified: data.date || '',
+    datePublished: data.date || "",
+    dateModified: data.date || "",
   };
-
   if (finalImageURL) {
     jsonLdData.image = finalImageURL;
   }
@@ -200,7 +204,7 @@ export async function getStaticProps({ params }) {
     props: {
       frontMatter: {
         ...data,
-        image: finalImageURL || null, // Guardamos la URL final o null
+        image: finalImageURL || null,
       },
       mdxSource,
       htmlContent,
@@ -214,8 +218,8 @@ export async function getStaticProps({ params }) {
 
 /** ---------------------------------------------------------------------------------------------
  * PAGE COMPONENT: BlogArticlePage
- * Renderiza el artículo (MD o MDX) con SEO, fallback de imágenes, etc.
- * --------------------------------------------------------------------------------------------*/
+ * Renderiza el artículo (MD o MDX) con la misma paleta de estilos que HeroTalberos, etc.
+ * -------------------------------------------------------------------------------------------*/
 export default function BlogArticlePage({
   frontMatter,
   mdxSource,
@@ -227,13 +231,12 @@ export default function BlogArticlePage({
 }) {
   const router = useRouter();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsDarkMode(document.documentElement.classList.contains('dark-mode'));
+    if (typeof window !== "undefined") {
+      setIsDarkMode(document.documentElement.classList.contains("dark-mode"));
     }
   }, []);
 
@@ -256,41 +259,35 @@ export default function BlogArticlePage({
     ? [...new Set([...DEFAULT_KEYWORDS, ...keywords])]
     : DEFAULT_KEYWORDS;
 
-  // Si NO hay imagen del artículo (image == null), usamos fallback
+  // Fallback de imágenes
   const hasCustomImage = Boolean(image);
-  const fallbackImageWebp = FALLBACK_BASE_URL + FALLBACK_IMAGES.webp;
-  const fallbackImagePng = FALLBACK_BASE_URL + FALLBACK_IMAGES.png;
-  const fallbackImageJpg = FALLBACK_BASE_URL + FALLBACK_IMAGES.jpg;
+  const fallbackImageWebp = FALLBACK_BASE_URL + FALLBACK_IMAGE_WEBP;
+  const fallbackImagePng = FALLBACK_BASE_URL + FALLBACK_IMAGE_PNG;
+  const fallbackImageJpg = FALLBACK_BASE_URL + FALLBACK_IMAGE_JPG;
 
   return (
     <>
       {/* SEO HEAD TAGS */}
       <Head>
-        {/* Título y descripción */}
         <title>{title}</title>
         <meta name="description" content={description} />
-        {/* Indexación */}
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href={pageUrl} />
-        {/* Autor */}
         <meta name="author" content={author} />
 
-        {/* Keywords (frontmatter + default) */}
+        {/* Keywords */}
         {finalKeywords.length > 0 && (
-          <meta name="keywords" content={finalKeywords.join(', ')} />
+          <meta name="keywords" content={finalKeywords.join(", ")} />
         )}
 
-        {/* Open Graph (OG) */}
+        {/* Open Graph */}
         <meta property="og:type" content="article" />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
         <meta property="og:url" content={pageUrl} />
-
         {hasCustomImage ? (
-          // Si el post define su propia imagen
           <meta property="og:image" content={image} />
         ) : (
-          // Si no, añadimos múltiples OG images (webp, png, jpg) como fallback
           <>
             <meta property="og:image" content={fallbackImageWebp} />
             <meta property="og:image" content={fallbackImagePng} />
@@ -302,7 +299,6 @@ export default function BlogArticlePage({
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
-
         {hasCustomImage ? (
           <meta name="twitter:image" content={image} />
         ) : (
@@ -313,60 +309,59 @@ export default function BlogArticlePage({
           </>
         )}
 
-        {/* JSON-LD para artículos (BlogPosting) */}
+        {/* JSON-LD (BlogPosting) */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdData) }}
         />
 
-        {/* theme-color para navegadores móviles (modo oscuro por defecto) */}
-        <meta name="theme-color" content="#1F1F1F" />
+        {/* theme-color para móviles */}
+        <meta name="theme-color" content="#0d47a1" />
       </Head>
 
-      {/* Menu principal (cargado dinámicamente) */}
+      {/* MENU PRINCIPAL */}
       <Menu />
 
-      {/* CONTENEDOR PRINCIPAL */}
+      {/* CONTENEDOR PRINCIPAL: Gradiente de fondo y estilo unificado */}
       <Box
         component="article"
         role="article"
         aria-label={`Artículo: ${title}`}
         sx={{
-          backgroundColor: BACKGROUND_COLOR,
-          minHeight: '100vh',
+          background: ARTICLE_BG_GRADIENT,
+          minHeight: "100vh",
           pt: isMobile ? 10 : ARTICLE_CONTAINER_PADDING_TOP,
-          color: TEXT_COLOR,
-          overflowX: 'hidden',
+          overflowX: "hidden",
         }}
       >
         <Box
           sx={{
-            width: '100%',
+            width: "100%",
             maxWidth: ARTICLE_CONTAINER_MAX_WIDTH,
-            margin: '0 auto',
-            backgroundColor: BACKGROUND_COLOR,
+            margin: "0 auto",
             boxShadow: ARTICLE_CONTAINER_BOX_SHADOW,
             borderRadius: ARTICLE_CONTAINER_BORDER_RADIUS,
-            overflow: 'hidden',
+            overflow: "hidden",
             pb: 4,
             px: isMobile ? 2 : ARTICLE_CONTAINER_PADDING_SIDE,
+            background: "transparent",
           }}
         >
           {/* CABECERA DEL ARTÍCULO */}
           <header
             style={{
-              textAlign: 'center',
-              marginBottom: '2rem',
-              marginTop: '2rem',
+              textAlign: "center",
+              marginBottom: ARTICLE_HEADER_MARGIN_BOTTOM,
+              marginTop: ARTICLE_HEADER_MARGIN_TOP,
             }}
           >
             <Typography
-              variant="h1"
+              component="h1"
               sx={{
                 fontSize: ARTICLE_TITLE_FONT_SIZE,
-                fontWeight: 'bold',
+                fontWeight: ARTICLE_TITLE_FONT_WEIGHT,
                 mb: 1,
-                color: TITLE_COLOR,
+                color: ARTICLE_TITLE_COLOR,
               }}
             >
               {title}
@@ -374,10 +369,10 @@ export default function BlogArticlePage({
 
             {description && (
               <Typography
-                variant="h2"
+                component="h2"
                 sx={{
-                  fontSize: '1.2rem',
-                  color: SUBTITLE_COLOR,
+                  fontSize: ARTICLE_SUBTITLE_FONT_SIZE,
+                  color: ARTICLE_SUBTITLE_COLOR,
                   mb: 2,
                 }}
               >
@@ -387,13 +382,13 @@ export default function BlogArticlePage({
 
             {date && (
               <Typography
-                variant="body2"
-                sx={{ color: '#888', fontStyle: 'italic' }}
+                component="p"
+                sx={{ color: ARTICLE_FALLBACK_TEXT_COLOR, fontStyle: "italic" }}
               >
-                {new Date(date).toLocaleDateString('es-ES', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
+                {new Date(date).toLocaleDateString("es-ES", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
                 })}
               </Typography>
             )}
@@ -401,7 +396,7 @@ export default function BlogArticlePage({
 
           {/* IMAGEN PRINCIPAL (OPCIONAL) */}
           {hasCustomImage ? (
-            <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Box sx={{ textAlign: "center", mb: 4 }}>
               <Image
                 src={image}
                 alt={`Imagen principal del artículo: ${title}`}
@@ -413,8 +408,7 @@ export default function BlogArticlePage({
               />
             </Box>
           ) : (
-            // Si NO hay imagen del artículo, usamos fallback (ej: .png)
-            <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Box sx={{ textAlign: "center", mb: 4 }}>
               <Image
                 src={fallbackImagePng}
                 alt="Imagen de fallback para artículos"
@@ -431,55 +425,55 @@ export default function BlogArticlePage({
           <Box
             component="section"
             sx={{
+              color: ARTICLE_TEXT_COLOR,
               lineHeight: 1.7,
-              '& h1, & h2, & h3, & h4, & h5, & h6': {
-                marginTop: '2rem',
-                marginBottom: '1rem',
-                color: TEXT_COLOR,
+              "& h1, & h2, & h3, & h4, & h5, & h6": {
+                marginTop: "2rem",
+                marginBottom: "1rem",
+                color: ARTICLE_TEXT_COLOR,
               },
-              '& p': {
-                marginBottom: '1rem',
+              "& p": {
+                marginBottom: "1rem",
               },
-              '& code': {
-                backgroundColor: CARD_BG_COLOR,
-                color: '#eee',
-                padding: '0.2rem 0.4rem',
-                borderRadius: '4px',
-                fontSize: '0.95rem',
+              "& code": {
+                backgroundColor: ARTICLE_CODE_BG_COLOR,
+                color: "#000000",
+                padding: "0.2rem 0.4rem",
+                borderRadius: "4px",
+                fontSize: "0.95rem",
                 fontFamily:
-                  'SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace',
+                  "SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace",
               },
-              '& pre': {
-                backgroundColor: CARD_BG_COLOR,
-                padding: '1rem',
-                borderRadius: '8px',
-                overflowX: 'auto',
-                marginBottom: '1.5rem',
-                marginTop: '1rem',
+              "& pre": {
+                backgroundColor: ARTICLE_CODE_BG_COLOR,
+                padding: "1rem",
+                borderRadius: "8px",
+                overflowX: "auto",
+                marginBottom: "1.5rem",
+                marginTop: "1rem",
+                color: "#000000",
               },
-              '& blockquote': {
-                borderLeft: `4px solid ${TITLE_COLOR}`,
-                backgroundColor: CARD_BG_COLOR,
-                padding: '1rem 1.5rem',
-                margin: '1.5rem 0',
-                fontStyle: 'italic',
-                color: '#ccc',
+              "& blockquote": {
+                borderLeft: `${ARTICLE_BLOCKQUOTE_BORDER_SIZE} solid ${ARTICLE_BLOCKQUOTE_BORDER_COLOR}`,
+                backgroundColor: ARTICLE_CODE_BG_COLOR,
+                padding: "1rem 1.5rem",
+                margin: "1.5rem 0",
+                fontStyle: "italic",
+                color: ARTICLE_BLOCKQUOTE_COLOR,
               },
             }}
           >
             {isMdx ? (
-              // Si es .mdx, renderizamos con MDXRemote
               <MDXRemote {...mdxSource} />
             ) : (
-              // Si es .md, inyectamos el HTML
               <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
             )}
           </Box>
 
           {/* FOOTER DEL ARTÍCULO */}
-          <footer style={{ marginTop: '2rem', textAlign: 'center' }}>
-            <Typography variant="body2" sx={{ color: '#666' }}>
-              © {new Date().getFullYear()} Talberos - Proyecto Open Source.
+          <footer style={{ marginTop: "2rem", textAlign: "center" }}>
+            <Typography component="p" sx={{ color: ARTICLE_FALLBACK_TEXT_COLOR }}>
+              © {new Date().getFullYear()} Talberos - Proyecto Open Source (MIT).
             </Typography>
           </footer>
         </Box>

@@ -1,3 +1,4 @@
+"use client";
 /**
  * MIT License
  * ----------------------------------------------------------------------------
@@ -21,46 +22,87 @@
  *  - Código ofrecido bajo licencia MIT.
  */
 
-import React, { useState, useEffect } from 'react';
-import Head from 'next/head';
-import fs from 'fs/promises';
-import path from 'path';
-import matter from 'gray-matter';
-import Link from 'next/link';
-import { Box, Typography, useMediaQuery } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import React, { useState, useEffect } from "react";
+import Head from "next/head";
+import fs from "fs/promises";
+import path from "path";
+import matter from "gray-matter";
+import Link from "next/link";
+import { Box, Typography, useMediaQuery } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 
-// **** Uso de next/image para optimizar rendimiento ****
-import Image from 'next/image';
+// Uso de next/image para optimizar rendimiento
+import Image from "next/image";
 
 // Componentes del ecosistema Talberos
-import Menu from '../../components/landing/Menu';
+import Menu from "../../components/landing/Menu";
 
 // -----------------------------------------------------------------------------
-// CONSTANTES PARA SEO Y ESTILO
+// CONSTANTES DE CONFIGURACIÓN DE ESTILOS (Misma paleta que Hero/UniqueDifferentiator)
 // -----------------------------------------------------------------------------
-const BLOG_TITLE = 'Blog de Talberos';
-const BLOG_DESCRIPTION =
-  'Bienvenido al Blog de Talberos, parte del ecosistema integral en React, 100% Open Source (MIT). Conoce las novedades y guías técnicas de nuestras herramientas.';
-const BLOG_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
-/** Imagen principal (varios formatos) */
-const BLOG_IMAGE_WEBP = '/images/preview.webp';
-const BLOG_IMAGE_PNG = '/images/preview.png';
-const BLOG_IMAGE_JPG = '/images/preview.jpg';
+/**
+ * Paleta principal:
+ * - Gradiente como fondo (Hero style)
+ * - Colores de texto y títulos
+ * - Ajuste de tarjetas, etc.
+ */
+const BLOG_BG_GRADIENT = "linear-gradient(135deg, #FFFFFF 30%, #1e88e5 100%)";
+const BLOG_TEXT_COLOR = "#000000";
+const BLOG_TITLE_COLOR = "#0d47a1";
+const BLOG_CARD_BG_COLOR = "#FFFFFF";
+const BLOG_CARD_TEXT_COLOR = "#000000";
+const BLOG_LINK_COLOR = "#0d47a1";
 
-/** Palabras clave para SEO */
-const BLOG_KEYWORDS =
-  'Talberos, Blog, React, Next.js, Tableros, Open Source, MIT, Desarrollo, JavaScript, Ecosistema';
+/** Encabezado del Blog */
+const BLOG_MAIN_HEADING_FONT_SIZE_MOBILE = "2rem";
+const BLOG_MAIN_HEADING_FONT_SIZE_DESKTOP = "3rem";
+const BLOG_MAIN_HEADING_FONT_WEIGHT = "bold";
 
-// Colores y estilos (modo oscuro por defecto)
-const CONTAINER_BG_COLOR = '#121212';
-const CARD_BG_COLOR = '#1F1F1F';
-const TITLE_COLOR = '#FF00AA';
-const TEXT_COLOR = '#FFFFFF';
-const SUBTITLE_DARK_COLOR = '#ccc';
-const SUBTITLE_LIGHT_COLOR = '#555';
+const BLOG_SUBTITLE_FONT_SIZE = "1.2rem";
+const BLOG_SUBTITLE_COLOR = "#000000"; // tono gris medio para subtítulos
+const BLOG_SUBTITLE_MARGIN_BOTTOM = 3;
+
+const BLOG_INTRO_TEXT_COLOR = "#000000"; // un gris claro para párrafos introductorios
+const BLOG_INTRO_TEXT_SIZE = "1rem";
+const BLOG_INTRO_MAX_WIDTH = "700px";
+const BLOG_INTRO_LINE_HEIGHT = 1.6;
+
+/** Sección de posts */
+const BLOG_CARD_BORDER_RADIUS = 2;
+const BLOG_CARD_BOX_SHADOW = 5;
+const BLOG_CARD_HOVER_TRANSFORM = "translateY(-3px) scale(1.02)";
+const BLOG_CARD_HOVER_SHADOW = "0 8px 20px rgba(0, 0, 0, 0.4)";
+
+/** Titulares de cada post */
+const BLOG_POST_TITLE_COLOR = "#1F1F1F";
+const BLOG_POST_TITLE_SIZE = "1.3rem";
+const BLOG_POST_TITLE_WEIGHT = "bold";
+
+/** Texto de fecha y descripción */
+const BLOG_POST_DATE_COLOR = "#666666"; // gris medio
+const BLOG_POST_DESCRIPTION_COLOR = "#555555";
+const BLOG_POST_DESCRIPTION_LINE_HEIGHT = 1.6;
+
+/** Enlace "Leer más" */
+const BLOG_READ_MORE_COLOR = BLOG_LINK_COLOR;
+const BLOG_READ_MORE_WEIGHT = "bold";
+
+/** Dimensiones de contenedor */
 const MAX_CONTENT_WIDTH = 1200;
+
+/** SEO y meta */
+const BLOG_TITLE = "Blog de Talberos";
+const BLOG_DESCRIPTION =
+  "Bienvenido al Blog de Talberos, parte del ecosistema integral en React, 100% Open Source (MIT). Conoce las novedades y guías técnicas de nuestras herramientas.";
+const BLOG_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+const BLOG_IMAGE_WEBP = "/images/preview.webp";
+const BLOG_IMAGE_PNG = "/images/preview.png";
+const BLOG_IMAGE_JPG = "/images/preview.jpg";
+
+const BLOG_KEYWORDS =
+  "Talberos, Blog, React, Next.js, Tableros, Open Source, MIT, Desarrollo, JavaScript, Ecosistema";
 
 // -----------------------------------------------------------------------------
 // COMPONENTE PRINCIPAL: BlogIndexPage
@@ -68,12 +110,13 @@ const MAX_CONTENT_WIDTH = 1200;
 export default function BlogIndexPage({ posts }) {
   // HOOKS Y ESTADOS
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
+  // Detecta si el sitio está en modo oscuro (si tuvieras clases en <html>).
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsDarkMode(document.documentElement.classList.contains('dark-mode'));
+    if (typeof window !== "undefined") {
+      setIsDarkMode(document.documentElement.classList.contains("dark-mode"));
     }
   }, []);
 
@@ -82,17 +125,12 @@ export default function BlogIndexPage({ posts }) {
   // ---------------------------------------------------------------------------
   const pageUrl = `${BLOG_BASE_URL}/blog`;
   const jsonLdData = {
-    '@context': 'https://schema.org',
-    '@type': 'Blog',
+    "@context": "https://schema.org",
+    "@type": "Blog",
     name: BLOG_TITLE,
     description: BLOG_DESCRIPTION,
     url: pageUrl,
   };
-
-  // ---------------------------------------------------------------------------
-  // CÁLCULOS DE COLORES Y ESTILOS EN BASE AL MODO OSCURO
-  // ---------------------------------------------------------------------------
-  const subtitleColor = isDarkMode ? SUBTITLE_DARK_COLOR : SUBTITLE_LIGHT_COLOR;
 
   // ---------------------------------------------------------------------------
   // RENDER DEL COMPONENTE
@@ -108,7 +146,7 @@ export default function BlogIndexPage({ posts }) {
         <link rel="canonical" href={pageUrl} />
         <meta name="author" content="Talberos Ecosystem" />
 
-        {/* Open Graph (OG) - múltiples imágenes para aumentar fallback */}
+        {/* Open Graph (OG) - múltiples imágenes para fallback */}
         <meta property="og:type" content="website" />
         <meta property="og:title" content={BLOG_TITLE} />
         <meta property="og:description" content={BLOG_DESCRIPTION} />
@@ -117,7 +155,7 @@ export default function BlogIndexPage({ posts }) {
         <meta property="og:image" content={BLOG_IMAGE_PNG} />
         <meta property="og:image" content={BLOG_IMAGE_JPG} />
 
-        {/* Twitter Card: añadimos varias imágenes similares */}
+        {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={BLOG_TITLE} />
         <meta name="twitter:description" content={BLOG_DESCRIPTION} />
@@ -126,78 +164,69 @@ export default function BlogIndexPage({ posts }) {
         <meta name="twitter:image" content={BLOG_IMAGE_PNG} />
         <meta name="twitter:image" content={BLOG_IMAGE_JPG} />
 
-        {/* Datos estructurados (JSON-LD) para describir el Blog */}
+        {/* Datos estructurados (JSON-LD) */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(jsonLdData),
-          }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdData) }}
         />
 
-        {/*
-          Favicons y variantes para distintas resoluciones
-          Ajusta las rutas si tienes un directorio /public/favicons.
-        */}
+        {/* Favicons y variantes */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
         <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
 
-        {/*
-          theme-color para móviles, asume modo oscuro base (#1F1F1F).
-          Cambia el valor si tu branding requiere otro color principal.
-        */}
-        <meta name="theme-color" content="#1F1F1F" />
+        {/* theme-color para móviles (usa un color base de la paleta) */}
+        <meta name="theme-color" content="#0d47a1" />
       </Head>
 
-      {/* MENÚ PRINCIPAL (modo oscuro o claro controlado externamente) */}
+      {/* MENÚ PRINCIPAL */}
       <Menu />
 
       {/* CONTENIDO PRINCIPAL */}
       <main>
         <Box
           sx={{
-            backgroundColor: CONTAINER_BG_COLOR,
-            position: 'relative',
-            minHeight: '100vh',
+            background: BLOG_BG_GRADIENT,
+            position: "relative",
+            minHeight: "100vh",
             pt: isMobile ? 10 : 12,
             pb: 4,
           }}
         >
+          {/* Contenedor interno */}
           <Box
             sx={{
-              width: '100%',
+              width: "100%",
               maxWidth: MAX_CONTENT_WIDTH,
-              margin: '0 auto',
-              backgroundColor: CONTAINER_BG_COLOR,
+              margin: "0 auto",
+              background: "transparent",
               px: isMobile ? 2 : 3,
-              color: TEXT_COLOR,
+              color: BLOG_TEXT_COLOR,
             }}
           >
-            {/* ENCABEZADO: PRESENTACIÓN DEL BLOG Y EL ECOSISTEMA TALBEROS */}
-            <Box sx={{ textAlign: 'center', mb: 5, mt: 2 }}>
-              {/* H1 para accesibilidad */}
+            {/* ENCABEZADO: PRESENTACIÓN DEL BLOG */}
+            <Box sx={{ textAlign: "center", mb: 5, mt: 2 }}>
               <Typography
                 component="h1"
-                variant="h1"
                 sx={{
-                  fontSize: isMobile ? '2rem' : '3rem',
-                  fontWeight: 'bold',
+                  fontSize: isMobile
+                    ? BLOG_MAIN_HEADING_FONT_SIZE_MOBILE
+                    : BLOG_MAIN_HEADING_FONT_SIZE_DESKTOP,
+                  fontWeight: BLOG_MAIN_HEADING_FONT_WEIGHT,
                   mb: 2,
-                  color: TITLE_COLOR,
+                  color: BLOG_TITLE_COLOR,
                 }}
               >
                 {BLOG_TITLE}
               </Typography>
 
-              {/* Subtítulo con color distinto según modo */}
               <Typography
                 component="h2"
-                variant="h2"
                 sx={{
-                  fontSize: '1.2rem',
-                  color: subtitleColor,
-                  mb: 3,
+                  fontSize: BLOG_SUBTITLE_FONT_SIZE,
+                  color: BLOG_SUBTITLE_COLOR,
+                  mb: BLOG_SUBTITLE_MARGIN_BOTTOM,
                 }}
               >
                 {BLOG_DESCRIPTION}
@@ -205,32 +234,25 @@ export default function BlogIndexPage({ posts }) {
 
               <Typography
                 component="p"
-                variant="body1"
                 sx={{
-                  fontSize: '1rem',
-                  maxWidth: '700px',
-                  margin: '0 auto',
-                  color: '#bbb',
-                  lineHeight: 1.6,
+                  fontSize: BLOG_INTRO_TEXT_SIZE,
+                  maxWidth: BLOG_INTRO_MAX_WIDTH,
+                  margin: "0 auto",
+                  color: BLOG_INTRO_TEXT_COLOR,
+                  lineHeight: BLOG_INTRO_LINE_HEIGHT,
                 }}
               >
-                Esta página de blog es parte de <strong>Talberos</strong>, un
-                ecosistema integral para desarrollo en React, totalmente{' '}
-                <strong>Open Source (MIT)</strong>. El código que genera este sitio
-                te permite una renderización automática y optimizada para SEO. Siéntete
-                libre de ajustarlo a tus necesidades, integrando soluciones tipo
-                “tableros” y mucho más.
               </Typography>
             </Box>
 
             {/* LISTA DE POSTS EN FORMATO GRID */}
             <Box
               sx={{
-                display: 'grid',
+                display: "grid",
                 gridTemplateColumns: {
-                  xs: '1fr',
-                  sm: '1fr 1fr',
-                  md: '1fr 1fr 1fr',
+                  xs: "1fr",
+                  sm: "1fr 1fr",
+                  md: "1fr 1fr 1fr",
                 },
                 gap: 3,
               }}
@@ -239,28 +261,29 @@ export default function BlogIndexPage({ posts }) {
                 <Box
                   key={post.slug}
                   sx={{
-                    backgroundColor: CARD_BG_COLOR,
-                    boxShadow: 5,
-                    borderRadius: 2,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    overflow: 'hidden',
-                    minHeight: '320px',
-                    transition: 'transform 0.3s, box-shadow 0.3s',
-                    '&:hover': {
-                      transform: 'translateY(-3px) scale(1.02)',
-                      boxShadow: '0 8px 20px rgba(0, 0, 0, 0.4)',
+                    backgroundColor: BLOG_CARD_BG_COLOR,
+                    color: BLOG_CARD_TEXT_COLOR,
+                    boxShadow: BLOG_CARD_BOX_SHADOW,
+                    borderRadius: BLOG_CARD_BORDER_RADIUS,
+                    display: "flex",
+                    flexDirection: "column",
+                    overflow: "hidden",
+                    minHeight: "320px",
+                    transition: "transform 0.3s, box-shadow 0.3s",
+                    "&:hover": {
+                      transform: BLOG_CARD_HOVER_TRANSFORM,
+                      boxShadow: BLOG_CARD_HOVER_SHADOW,
                     },
                   }}
                 >
                   {/* IMAGEN DEL POST (usar next/image para optimizar) */}
                   {post.frontMatter.image && (
-                    <Box sx={{ width: '100%', height: '180px', position: 'relative' }}>
+                    <Box sx={{ width: "100%", height: "180px", position: "relative" }}>
                       <Image
                         src={post.frontMatter.image}
-                        alt={post.frontMatter.title || 'Imagen del artículo'}
+                        alt={post.frontMatter.title || "Imagen del artículo"}
                         fill
-                        style={{ objectFit: 'cover' }}
+                        style={{ objectFit: "cover" }}
                       />
                     </Box>
                   )}
@@ -269,54 +292,63 @@ export default function BlogIndexPage({ posts }) {
                   <Box
                     sx={{
                       p: 2,
-                      display: 'flex',
-                      flexDirection: 'column',
+                      display: "flex",
+                      flexDirection: "column",
                       flexGrow: 1,
                     }}
                   >
                     <Typography
-                      variant="h2"
+                      component="h3"
                       sx={{
-                        fontSize: '1.3rem',
+                        fontSize: BLOG_POST_TITLE_SIZE,
                         mb: 1,
-                        fontWeight: 'bold',
-                        color: '#fff',
+                        fontWeight: BLOG_POST_TITLE_WEIGHT,
+                        color: BLOG_POST_TITLE_COLOR,
                       }}
                     >
                       {post.frontMatter.title}
                     </Typography>
 
                     {post.frontMatter.date && (
-                      <Typography variant="body2" sx={{ color: '#999', mb: 1 }}>
-                        {new Date(post.frontMatter.date).toLocaleDateString('es-ES', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
+                      <Typography
+                        component="p"
+                        sx={{
+                          fontSize: "0.875rem",
+                          color: BLOG_POST_DATE_COLOR,
+                          mb: 1,
+                        }}
+                      >
+                        {new Date(post.frontMatter.date).toLocaleDateString("es-ES", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
                         })}
                       </Typography>
                     )}
 
                     {post.frontMatter.description && (
                       <Typography
-                        variant="body1"
+                        component="p"
                         sx={{
                           mb: 2,
                           flexGrow: 1,
-                          color: '#ccc',
-                          lineHeight: 1.6,
+                          color: BLOG_POST_DESCRIPTION_COLOR,
+                          lineHeight: BLOG_POST_DESCRIPTION_LINE_HEIGHT,
+                          fontSize: "0.95rem",
                         }}
                       >
                         {post.frontMatter.description}
                       </Typography>
                     )}
 
-                    <Box sx={{ mt: 'auto', pt: 1 }}>
+                    {/* ENLACE LEER MÁS */}
+                    <Box sx={{ mt: "auto", pt: 1 }}>
                       <Link href={`/blog/${post.slug}`} passHref legacyBehavior>
                         <a
                           style={{
-                            color: TITLE_COLOR,
-                            fontWeight: 'bold',
-                            textDecoration: 'none',
+                            color: BLOG_READ_MORE_COLOR,
+                            fontWeight: BLOG_READ_MORE_WEIGHT,
+                            textDecoration: "none",
                           }}
                           aria-label={`Leer más sobre: ${post.frontMatter.title}`}
                         >
@@ -330,8 +362,11 @@ export default function BlogIndexPage({ posts }) {
             </Box>
 
             {/* PIE DE PÁGINA */}
-            <Box sx={{ textAlign: 'center', mt: 6 }}>
-              <Typography variant="body2" sx={{ color: '#999' }}>
+            <Box sx={{ textAlign: "center", mt: 6 }}>
+              <Typography
+                component="p"
+                sx={{ fontSize: "0.85rem", color: BLOG_TEXT_COLOR }}
+              >
                 © {new Date().getFullYear()} Talberos. Proyecto Open Source - MIT.
               </Typography>
             </Box>
@@ -346,20 +381,20 @@ export default function BlogIndexPage({ posts }) {
 // getStaticProps: LEE FICHEROS .MD Y .MDX EN LA CARPETA /blogs
 // -----------------------------------------------------------------------------
 export async function getStaticProps() {
-  const blogsDir = path.join(process.cwd(), 'blogs');
+  const blogsDir = path.join(process.cwd(), "blogs");
   let files = [];
 
   // Lectura de la carpeta /blogs
   try {
     files = await fs.readdir(blogsDir);
   } catch (error) {
-    console.error('[BLOG INDEX] Error leyendo la carpeta /blogs:', error);
+    console.error("[BLOG INDEX] Error leyendo la carpeta /blogs:", error);
     return { props: { posts: [] } };
   }
 
   // Filtra solo archivos .md o .mdx
   const markdownFiles = files.filter(
-    (file) => file.endsWith('.md') || file.endsWith('.mdx')
+    (file) => file.endsWith(".md") || file.endsWith(".mdx")
   );
 
   // Array para acumular posts
@@ -377,15 +412,15 @@ export async function getStaticProps() {
     }
 
     try {
-      const fileContent = await fs.readFile(fullPath, 'utf8');
+      const fileContent = await fs.readFile(fullPath, "utf8");
       const { data } = matter(fileContent);
 
       posts.push({
-        slug: file.replace(/\.(md|mdx)$/, ''), // Genera el slug sin extensión
+        slug: file.replace(/\.(md|mdx)$/, ""), // Genera el slug sin extensión
         order: fileOrder,
         frontMatter: {
-          title: data.title || 'Artículo sin título',
-          description: data.description || '',
+          title: data.title || "Artículo sin título",
+          description: data.description || "",
           image: data.image || null,
           date: data.date || null,
         },
