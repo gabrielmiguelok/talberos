@@ -34,7 +34,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { animated, useSpring } from "@react-spring/web";
 import { useDrag } from "@use-gesture/react";
 
@@ -57,32 +57,28 @@ const useIsomorphicLayoutEffect =
 const GRADIENT_BG = "linear-gradient(1116deg, #0d47a1 10%, #ffffff 120%)";
 
 /** Colores y estilos centrales */
-const COLOR_MODAL_BG = GRADIENT_BG;        // Fondo principal en gradiente
-const COLOR_APPBAR_BG = GRADIENT_BG;       // Barra superior, mismo gradiente
-const COLOR_APPBAR_HOVER = "transparent";      // Hover en la barra
-const COLOR_BRAND_TITLE = "#0d47a1";       // Texto de marca (opcional)
-const COLOR_CLOSE_BUTTON = "#FFFFFF";      // Ícono de cierre (blanco)
-
-const COLOR_MESSAGE_LIST_BG = "transparent";    // Fondo del contenedor
-const COLOR_TEXTFIELD_BG = "transparent";       // Fondo del TextField
-const COLOR_TEXTFIELD_BORDER = "1px solid #ddd";// Borde superior del TextField Container
+const COLOR_MODAL_BG = GRADIENT_BG;  // Fondo principal en gradiente
+const COLOR_APPBAR_BG = GRADIENT_BG; // Barra superior, mismo gradiente
+const COLOR_APPBAR_HOVER = "transparent";
+const COLOR_BRAND_TITLE = "#0d47a1";
+const COLOR_CLOSE_BUTTON = "#FFFFFF";  // Ícono de cierre (blanco)
+const COLOR_MESSAGE_LIST_BG = "transparent"; // Fondo del contenedor
+const COLOR_TEXTFIELD_BG = "transparent";    // Fondo del TextField
+const COLOR_TEXTFIELD_BORDER = "1px solid #ddd";
 const COLOR_TEXTFIELD_FONT_SIZE = "0.85rem";
-
-const COLOR_BUTTON_ACCENT = "#0d47a1";    // Botón de envío (rosa principal)
-const COLOR_BUTTON_HOVER = "#0d47a1";     // Hover del botón
+const COLOR_BUTTON_ACCENT = "#0d47a1";
+const COLOR_BUTTON_HOVER = "#0d47a1";
 
 /** Dimensiones */
-const ICON_SIZE = 100;                    // Tamaño del ícono flotante
-const MODAL_WIDTH = 360;                 // Ancho del modal (en sm y adelante)
-const MODAL_HEIGHT_DESKTOP = "70vh";     // Alto en desktop
-const MODAL_HEIGHT_MOBILE = "90vh";      // Alto en mobile
-const MODAL_MAX_HEIGHT = "90vh";         // Máximo alto
-const MODAL_ZINDEX = 9999;               // Z-index por encima de todo
-const MODAL_BORDER_RADIUS = 12;          // Borde redondeado del modal
-const TOOLBAR_MIN_HEIGHT = 42;           // Mínimo en la toolbar (AppBar)
-const TAP_THRESHOLD = 5;                 // Umbral para distinguir drag de tap
-
-/** Margenes (espacios) para el ícono flotante */
+const ICON_SIZE = 100;
+const MODAL_WIDTH = 360;
+const MODAL_HEIGHT_DESKTOP = "70vh";
+const MODAL_HEIGHT_MOBILE = "90vh";
+const MODAL_MAX_HEIGHT = "90vh";
+const MODAL_ZINDEX = 9999;
+const MODAL_BORDER_RADIUS = 12;
+const TOOLBAR_MIN_HEIGHT = 42;
+const TAP_THRESHOLD = 5;             // Umbral para distinguir drag de tap
 const MARGIN_MOBILE = 10;
 const MARGIN_DESKTOP = 20;
 
@@ -92,11 +88,6 @@ const REPO_URL = "https://github.com/gabrielmiguelok/talberos";
 
 /* ==========================================================================
    3) COMPONENTE ChatModal (uso interno)
-   ==========================================================================
-   - Muestra un AppBar con gradiente, un cuerpo con mensaje de bienvenida y
-     botón para abrir un repo, y un footer con TextField + botón para enviar
-     mensaje a WhatsApp.
-   - 100% estilos inline (sx), sin depender de otros archivos.
    ========================================================================== */
 function ChatModal({ onClose, isEnglish }) {
   // Textos multilenguaje
@@ -124,7 +115,7 @@ function ChatModal({ onClose, isEnglish }) {
   }, [userMessage]);
 
   /**
-   * Envía el mensaje a WhatsApp (usando api.whatsapp.com).
+   * Envía el mensaje a WhatsApp
    */
   const handleSend = () => {
     try {
@@ -176,7 +167,7 @@ function ChatModal({ onClose, isEnglish }) {
         width: { xs: "100%", sm: MODAL_WIDTH },
         height: { xs: MODAL_HEIGHT_MOBILE, sm: MODAL_HEIGHT_DESKTOP },
         maxHeight: MODAL_MAX_HEIGHT,
-        background: COLOR_MODAL_BG, // Gradiente igual que el chat
+        background: COLOR_MODAL_BG,
         boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
         borderTopRightRadius: MODAL_BORDER_RADIUS,
         borderTopLeftRadius: MODAL_BORDER_RADIUS,
@@ -185,7 +176,7 @@ function ChatModal({ onClose, isEnglish }) {
         flexDirection: "column"
       }}
     >
-      {/* Encabezado (AppBar) con el mismo gradiente */}
+      {/* Encabezado (AppBar) */}
       <AppBar
         position="static"
         sx={{
@@ -202,7 +193,7 @@ function ChatModal({ onClose, isEnglish }) {
               flex: 1,
               fontWeight: "bold",
               fontSize: "1rem",
-              color: COLOR_CLOSE_BUTTON // Blanco
+              color: COLOR_CLOSE_BUTTON
             }}
           >
             Icon Whatsapp MIT
@@ -213,13 +204,12 @@ function ChatModal({ onClose, isEnglish }) {
         </Toolbar>
       </AppBar>
 
-      {/* Cuerpo principal del modal */}
+      {/* Cuerpo principal */}
       <Box
         sx={{
           flex: 1,
           p: 2,
           overflowY: "auto",
-          // Fondo transparente para "ver" el gradiente si quieres
           background: COLOR_MESSAGE_LIST_BG,
           display: "flex",
           flexDirection: "column",
@@ -229,7 +219,7 @@ function ChatModal({ onClose, isEnglish }) {
         {/* Mensaje de bienvenida */}
         <Box
           sx={{
-            backgroundColor: "#cee9ff", // Similar a ChatStylesConfig
+            backgroundColor: "#cee9ff",
             color: "#1F1F1F",
             p: 1.5,
             borderRadius: 2,
@@ -261,7 +251,6 @@ function ChatModal({ onClose, isEnglish }) {
           </Button>
         </Box>
 
-        {/* Empuja al final y mantiene el scroll */}
         <Box sx={{ flex: 1 }} />
         <div ref={messagesEndRef} />
       </Box>
@@ -308,21 +297,39 @@ function ChatModal({ onClose, isEnglish }) {
 }
 
 /* ==========================================================================
-   4) COMPONENTE FloatingChatIcon (interno)
-   ==========================================================================
-   Ícono flotante arrastrable, por defecto en la esquina inferior izquierda.
-   Uso de react-spring y use-gesture para el drag & drop.
+   4) CRUCECITA GRIS PARA CERRAR
+   ========================================================================== */
+/** Parámetros de la crucecita “cerrar” */
+const CROSS_SIZE = 50;
+const CROSS_BG_COLOR = 'transparent';
+const CROSS_BORDER = '2px solid #0d47a1';
+const CROSS_COLOR = '#0d47a1';
+const CLOSE_THRESHOLD = 60; // Distancia para “cerrar” cuando se suelta cerca
+
+
+/* ==========================================================================
+   5) COMPONENTE FloatingChatIcon (arrastrable + crucecita)
    ========================================================================== */
 function FloatingChatIcon({ onClick }) {
   const iconRef = useRef(null);
 
   // Tamaño de la ventana
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
-  // Dimensiones del ícono calculadas tras montarse
-  const [iconRect, setIconRect] = useState({ width: ICON_SIZE, height: ICON_SIZE });
-  // Posición animada (x, y) con react-spring
+  // Posición inicial para ubicar la crucecita (guardamos x,y)
+  const [initialPos, setInitialPos] = useState({ x: 0, y: 0 });
+
+  // React Spring: x, y => posición actual del ícono
   const [style, api] = useSpring(() => ({ x: 0, y: 0 }));
+
   const [isSelected, setIsSelected] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+
+  // Dimensiones del ícono (para clamping)
+  const [iconRect, setIconRect] = useState({
+    width: ICON_SIZE,
+    height: ICON_SIZE
+  });
 
   useEffect(() => {
     const updateSize = () => {
@@ -335,7 +342,7 @@ function FloatingChatIcon({ onClick }) {
     };
   }, []);
 
-  // Posición inicial en la esquina inferior izquierda (solo en cliente)
+  // Posición inicial en la esquina inferior izquierda
   useIsomorphicLayoutEffect(() => {
     if (iconRef.current && typeof window !== "undefined") {
       requestAnimationFrame(() => {
@@ -354,11 +361,12 @@ function FloatingChatIcon({ onClick }) {
         }
 
         api.start({ x: defaultX, y: defaultY });
+        setInitialPos({ x: defaultX, y: defaultY });
       });
     }
   }, [api]);
 
-  // Des-selecciona ícono si se hace click/touch fuera de él
+  // Deseleccionar ícono si se hace click/touch fuera
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (isSelected && iconRef.current && !iconRef.current.contains(e.target)) {
@@ -373,24 +381,47 @@ function FloatingChatIcon({ onClick }) {
     };
   }, [isSelected]);
 
-  // Manejo del arrastre: si movement < TAP_THRESHOLD, consideramos "tap" y llamamos onClick
+  // Lógica de arrastre con use-gesture
   const bind = useDrag(
     ({ offset: [ox, oy], first, last, movement: [mx, my] }) => {
-      if (first) setIsSelected(true);
+      if (first) {
+        setIsSelected(true);
+        setIsDragging(true);
+      }
 
+      if (!windowSize.width || !windowSize.height) return;
       const { width: wWidth, height: wHeight } = windowSize;
       const { width: iWidth, height: iHeight } = iconRect;
 
+      // Clamping para no salirse de la pantalla
       const clampedX = Math.min(Math.max(ox, 0), wWidth - iWidth);
       const clampedY = Math.min(Math.max(oy, 0), wHeight - iHeight);
 
       api.start({ x: clampedX, y: clampedY });
 
-      // Detecta "tap"
       if (last) {
+        setIsDragging(false);
         setIsSelected(false);
+
+        // Distancia del arrastre para ver si es "tap"
         if (Math.hypot(mx, my) < TAP_THRESHOLD) {
-          onClick();
+          onClick?.();
+          return;
+        }
+
+        // Si no es tap, ver si suelto cerca de la crucecita => esconder
+        const iconCenterX = clampedX + iWidth / 2;
+        const iconCenterY = clampedY + iHeight / 2;
+
+        // Crucecita centrada horizontalmente, misma altura "inicial" del ícono
+        const crossCenterX = wWidth / 2;
+        const crossCenterY =
+          initialPos.y + (ICON_SIZE - CROSS_SIZE) / 2 + CROSS_SIZE / 2;
+
+        const distToCross = Math.hypot(iconCenterX - crossCenterX, iconCenterY - crossCenterY);
+
+        if (distToCross < CLOSE_THRESHOLD) {
+          setIsHidden(true);
         }
       }
     },
@@ -400,61 +431,106 @@ function FloatingChatIcon({ onClick }) {
     }
   );
 
+  // Si el ícono se cerró, no renderizamos nada
+  if (isHidden) return null;
+
   return (
-    <animated.div
-      ref={iconRef}
-      {...bind()}
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        x: style.x,
-        y: style.y,
-        zIndex: MODAL_ZINDEX,
-        userSelect: "none",
-        touchAction: "none"
-      }}
-    >
-      <motion.div
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.9 }}
+    <>
+      {/* CRUCECITA GRIS (aparece mientras arrastras) */}
+      <AnimatePresence>
+        {isDragging && (
+          <motion.div
+            key="close-cross"
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 0.9, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            transition={{ duration: 0.3 }}
+            style={{
+              position: "fixed",
+              top: initialPos.y + (ICON_SIZE - CROSS_SIZE) / 2,
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: MODAL_ZINDEX - 1,
+              width: CROSS_SIZE,
+              height: CROSS_SIZE,
+              borderRadius: "50%",
+              backgroundColor: CROSS_BG_COLOR,
+              border: CROSS_BORDER,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              userSelect: "none",
+              pointerEvents: "none"
+            }}
+          >
+            <Box
+              component="span"
+              sx={{
+                fontSize: "1.5rem",
+                fontWeight: "bold",
+                color: CROSS_COLOR,
+                lineHeight: 1
+              }}
+            >
+              X
+            </Box>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ÍCONO FLOTANTE */}
+      <animated.div
+        ref={iconRef}
+        {...bind()}
         style={{
-          width: ICON_SIZE,
-          height: ICON_SIZE,
-          background: "transparent",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: isSelected ? "grabbing" : "grab"
+          position: "fixed",
+          top: 0,
+          left: 0,
+          x: style.x,
+          y: style.y,
+          zIndex: MODAL_ZINDEX,
+          userSelect: "none",
+          touchAction: "none"
         }}
       >
-        {/* Ajusta la ruta al ícono de tu preferencia (ej. /wpicon.png) */}
-        <Box
-          component="img"
-          src="/wpicon.png"
-          alt="WhatsApp Icon"
-          draggable={false}
-          sx={{
-            width: ICON_SIZE * 0.6,
-            height: ICON_SIZE * 0.6,
-            objectFit: "contain"
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.9 }}
+          style={{
+            width: ICON_SIZE,
+            height: ICON_SIZE,
+            background: "transparent",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: isSelected ? "grabbing" : "grab"
           }}
-        />
-      </motion.div>
-    </animated.div>
+        >
+          <Box
+            component="img"
+            src="/wpicon.png"
+            alt="WhatsApp Icon"
+            draggable={false}
+            sx={{
+              width: ICON_SIZE * 0.6,
+              height: ICON_SIZE * 0.6,
+              objectFit: "contain"
+            }}
+          />
+        </motion.div>
+      </animated.div>
+    </>
   );
 }
 
 /* ==========================================================================
-   5) COMPONENTE PRINCIPAL: ChatWhatsAppFloat
-   ==========================================================================
-   Muestra el FloatingChatIcon y, cuando se hace click/tap, abre el ChatModal.
+   6) COMPONENTE PRINCIPAL: ChatWhatsAppFloat
    ========================================================================== */
 export function ChatWhatsAppFloat({ isEnglish = false }) {
   const [isOpen, setIsOpen] = useState(false);
 
   /**
-   * Abre/cierra el modal y opcionalmente manda eventos a dataLayer.
+   * Abre/cierra el modal y manda eventos a dataLayer
    */
   const handleToggleChat = () => {
     try {
