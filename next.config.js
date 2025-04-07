@@ -54,10 +54,13 @@ function configureCustomAliases(config) {
     '@components': path.resolve(__dirname, 'components'),
     '@utils': path.resolve(__dirname, 'utils'),
     '@hooks': path.resolve(__dirname, 'hooks'),
+    '@services': path.resolve(__dirname, 'services'),
     '@lib': path.resolve(__dirname, 'lib'),
     '@pages': path.resolve(__dirname, 'pages'),
     '@styles': path.resolve(__dirname, 'styles'),
     '@repositories': path.resolve(__dirname, 'repositories'),
+    '@constants': path.resolve(__dirname, 'constants'),
+
   };
 }
 
