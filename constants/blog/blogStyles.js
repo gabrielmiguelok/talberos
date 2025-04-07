@@ -9,7 +9,7 @@
  *  - Se importa en los componentes y páginas para mantener un "Single Source of Truth".
  *
  * PRINCIPIOS SOLID:
- *  - SRP: Un único archivo para configurar estilos.  
+ *  - SRP: Un único archivo para configurar estilos.
  *  - OCP: Permite añadir nuevas constantes sin modificar la estructura base.
  *
  * LICENCIA: MIT
@@ -34,7 +34,7 @@ export const BLOG_SUBTITLE_MARGIN_BOTTOM = 3;
 
 export const BLOG_INTRO_TEXT_COLOR = "#000000";
 export const BLOG_INTRO_TEXT_SIZE = "1rem";
-export const BLOG_INTRO_MAX_WIDTH = "700px";
+export const BLOG_INTRO_MAX_WIDTH = "auto";
 export const BLOG_INTRO_LINE_HEIGHT = 1.6;
 
 export const BLOG_CARD_BORDER_RADIUS = 2;
@@ -53,7 +53,7 @@ export const BLOG_POST_DESCRIPTION_LINE_HEIGHT = 1.6;
 export const BLOG_READ_MORE_COLOR = BLOG_LINK_COLOR;
 export const BLOG_READ_MORE_WEIGHT = "bold";
 
-export const MAX_CONTENT_WIDTH = 1200;
+export const MAX_CONTENT_WIDTH = 'auto';
 
 // Metadatos del blog
 export const BLOG_TITLE = "Blog de Talberos";

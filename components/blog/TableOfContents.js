@@ -1,3 +1,15 @@
+
+/**
+ * MIT License
+ * ----------------------------------------------------------------------------
+ * Archivo: /components/blog/TableOfContents.js
+ *
+ * DESCRIPCIÓN:
+ *   - Componente para renderizar el índice de contenidos (headings) de un artículo.
+ *   - Construye un árbol a partir de los headings para anidar secciones.
+ *
+ * LICENCIA: MIT
+ */
 "use client";
 import React from "react";
 import { Box, Typography } from "@mui/material";

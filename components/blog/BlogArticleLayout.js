@@ -1,4 +1,3 @@
-"use client";
 /**
  * MIT License
  * ----------------------------------------------------------------------------
@@ -10,6 +9,7 @@
  *
  * LICENCIA: MIT
  */
+"use client";
 import React, { useState, useEffect } from "react";
 import Head from "next/head";
 import Menu from "@components/landing/Menu";
@@ -112,7 +112,7 @@ export default function BlogArticleLayout({
         role="article"
         aria-label={`Artículo: ${title}`}
         sx={{
-          background: BLOG_BG_GRADIENT,
+          background: "linear-gradient(135deg, #FFFFFF 0%, #1e88e5 200%)",
           minHeight: "100vh",
           pt: isMobile ? 10 : 10,
           overflowX: "hidden",
@@ -232,24 +232,32 @@ export default function BlogArticleLayout({
                 marginBottom: "1rem",
               },
               "& p": { marginBottom: "1rem" },
+
+              /* ---- Ajustes para código inline (<code>) ---- */
               "& code": {
-                backgroundColor: "#FFFFFF",
-                color: "#000000",
+                backgroundColor: "#2d2d2d",
+                color: "#f8f8f2",
                 padding: "0.2rem 0.4rem",
                 borderRadius: "4px",
                 fontSize: "0.95rem",
                 fontFamily:
                   "SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace",
               },
+
+              /* ---- Ajustes para bloques de código (<pre>) ---- */
               "& pre": {
-                backgroundColor: "#FFFFFF",
+                backgroundColor: "#2d2d2d",
                 padding: "1rem",
                 borderRadius: "8px",
-                overflowX: "auto",
                 marginBottom: "1.5rem",
                 marginTop: "1rem",
-                color: "#000000",
+                color: "#f8f8f2",
+                /* Evita scroll horizontal y fuerza el ajuste de línea */
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                overflowX: "hidden",
               },
+
               "& blockquote": {
                 borderLeft: `4px solid #0d47a1`,
                 backgroundColor: "#FFFFFF",
