@@ -5,13 +5,17 @@
  * DESCRIPCIÓN:
  * ----------------------------------------------------------------------------------
  *   - Servicio que orquesta la lógica de edición de celdas.
- *   - Usa LocalTableDataRepository para leer/escribir localStorage.
- *   - Usa RemoteCellUpdateRepository para actualizar la DB si existe dbId.
+ *   - Usa LocalTableDataRepository para leer/escribir en localStorage.
+ *   - Usa RemoteCellUpdateRepository para actualizar la BD.
+ *
+ *   IMPORTANTÍSIMO:
+ *   - Aquí asumimos que `row.id` es realmente el ID en la BD.
+ *   - Si tu columna "id" no es la de la BD, debes ajustar la lógica.
  *
  * PRINCIPIOS SOLID:
  * ----------------------------------------------------------------------------------
- *   - SRP: Focalizado en la edición de celdas, sin mezclar otros temas.
- *   - DIP: Recibe repositorios inyectados, sin atarse a implementaciones concretas.
+ *   - SRP: Se enfoca en la edición de celdas y la sincronización local/remota.
+ *   - DIP: Depende de repos inyectados (local y remoto), sin atarse a implementaciones concretas.
  ************************************************************************************/
 
 export class CellDataService {
@@ -25,73 +29,80 @@ export class CellDataService {
   }
 
   /**
-   * Actualiza el valor de la celda (rowId, colId) en localStorage
-   * y, si hay dbId, lanza actualización en la DB.
+   * updateCellValue
+   * ----------------------------------------------------------------------------
+   * Actualiza el valor de la celda en:
+   *   1) El array en memoria (currentRows),
+   *   2) localStorage (vía localRepo),
+   *   3) BD (vía remoteRepo) => usando row.id como ID de la tabla.
    *
-   * @param {Array<Object>} currentRows  - Versión actual del estado de filas (tableData).
-   * @param {number} localRowIndex       - Índice local (rowId).
-   * @param {string} colId               - Nombre/ID de la columna.
-   * @param {string} newValue            - Valor nuevo a asignar.
-   * @returns {Array<Object>}            - Nuevo array de filas tras la edición.
+   * @param {Array<Object>} currentRows   - estado actual de filas (tableData).
+   * @param {number}        localRowIndex - índice en el array (0..length-1).
+   * @param {string}        colId         - nombre/clave de la columna.
+   * @param {string}        newValue      - valor nuevo a asignar.
+   * @returns {Array<Object>}             - nuevo array de filas tras la edición.
    */
   async updateCellValue(currentRows, localRowIndex, colId, newValue) {
-    // 1) Validaciones rápidas
+    // 1) Validaciones
     if (!Array.isArray(currentRows)) {
       console.warn('CellDataService.updateCellValue: currentRows no es un array.');
       return currentRows;
     }
     if (localRowIndex < 0 || localRowIndex >= currentRows.length) {
-      console.warn(`CellDataService.updateCellValue: ÍNDICE inválido = ${localRowIndex}`);
+      console.warn(`CellDataService.updateCellValue: Índice inválido = ${localRowIndex}`);
       return currentRows;
     }
+
     const row = currentRows[localRowIndex];
     const oldValue = row[colId] ?? '';
 
-    // 2) Evitar guardar si no hay cambios o si newValue es vacío
-    const safeNewValue = (newValue || '').trim();
+    // 2) Normalizar y chequear cambios
+    const safeNewValue = String(newValue || '').trim();
     if (!safeNewValue) {
-      console.warn(`Valor nuevo vacío/nulo. No se actualiza la celda [${localRowIndex}, ${colId}].`);
+      console.warn(`Valor nuevo vacío. No se actualiza [${localRowIndex}, ${colId}].`);
       return currentRows;
     }
     if (safeNewValue === String(oldValue).trim()) {
-      console.warn(`No hay cambios en la celda [${localRowIndex}, ${colId}].`);
+      console.warn(`Sin cambios en la celda [${localRowIndex}, ${colId}].`);
       return currentRows;
     }
 
-    // 3) Clonamos el array y actualizamos
+    // 3) Clonar y actualizar en memoria
     const updatedRows = [...currentRows];
     updatedRows[localRowIndex] = {
       ...row,
       [colId]: safeNewValue,
     };
 
-    // 4) Guardar localmente
+    // 4) Guardar en localStorage
     this.localRepo.saveAllRows(updatedRows);
 
-    // 5) Disparar update remoto si existe dbId en la fila
-    const dbId = row.dbId;
-    if (dbId !== undefined && dbId !== null) {
+    // 5) Actualizar remotamente usando row.id como ID de BD
+    //    Asegúrate de que `row.id` sea el campo que corresponde en la DB
+    const dbId = row.id;
+    if (dbId == null) {
+      console.warn(
+        `No existe un 'id' en la fila localRowIndex=${localRowIndex}. No se hace POST remoto.`
+      );
+    } else {
       try {
+        // Llamamos al repo remoto
         await this.remoteRepo.updateCell(dbId, colId, safeNewValue);
       } catch (error) {
         console.error('Error actualizando en la DB:', error);
-        // Aquí podrías decidir revertir el cambio o mantenerlo.
-        // Por defecto, solo registramos el error en consola.
+        // Podrías revertir cambio local si quieres
       }
     }
 
-    // 6) Retornar la nueva versión
     return updatedRows;
   }
 
   /**
-   * Carga desde localStorage, pisando la data en memoria si existe algo guardado.
-   * @param {Array<Object>} currentRows - Estado inicial proveniente de SSR o padre.
-   * @returns {Array<Object>} - El array que se usará en el state.
+   * Carga desde localStorage si existe, caso contrario, usa currentRows
    */
   loadLocalDataOrDefault(currentRows) {
     const savedRows = this.localRepo.getAllRows();
-    if (savedRows && savedRows.length > 0) {
+    if (Array.isArray(savedRows) && savedRows.length > 0) {
       return savedRows;
     }
     return currentRows;

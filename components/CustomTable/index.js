@@ -1,31 +1,29 @@
 /************************************************************************************
- * Archivo: /components/CustomTableRefactored/index.js
+ * Archivo: /components/CustomTable/index.js
  * LICENSE: MIT
  *
  * DESCRIPCIÓN:
  * ----------------------------------------------------------------------------------
- *   - Similar a tu "CustomTable", pero refactorizado para:
- *       1) Separar la lógica de edición en un hook y un servicio.
- *       2) Manejar rowId vs dbId (opcional) sin confundirlos.
- *   - Usa `useCellEditingOrchestration` para la confirmación de edición.
- *   - Evita duplicar código de acceso a localStorage y DB.
+ *   - Tabla refactorizada con lógica de edición local + remota.
+ *   - Separa la edición en un hook (`useCellEditingOrchestration`) + servicios.
+ *   - Conserva la idea de localStorage, y llama al back si hay un dbId en la fila.
  *
  * PRINCIPIOS SOLID APLICADOS:
  * ----------------------------------------------------------------------------------
  *   - SRP, OCP, DIP, etc.
+ *   - DRY: Evitamos duplicar la lógica para "confirmar edición".
  *
  * VERSION:
  * ----------------------------------------------------------------------------------
- *   - 3.0
- *     - Incorporación de la capa de servicio y repositorios.
+ *   - 3.0 (refactor con repos + servicios).
  *
  ************************************************************************************/
 
 import React, { useRef, useState, useEffect, createContext } from 'react';
-import { useCustomTableLogic } from './hooks/useCustomTableLogic';
-import { useThemeMode } from './hooks/useThemeMode';
-import FiltersToolbar from './toolbar/FiltersToolbar';
-import TableSection from './TableView'; // Tu sub-componente actual
+import { useCustomTableLogic } from './hooks/useCustomTableLogic'; // tu hook de React Table
+import { useThemeMode } from './hooks/useThemeMode';              // tu hook de tema
+import FiltersToolbar from './toolbar/FiltersToolbar';            // barra de filtros
+import TableSection from './TableView';                           // sub-componente principal
 import { useCellEditingOrchestration } from './hooks/useCellEditingOrchestration';
 
 // Repos y Service
@@ -34,15 +32,16 @@ import { RemoteCellUpdateRepository } from './repositories/RemoteCellUpdateRepos
 import { CellDataService } from './services/CellDataService';
 
 /**
- * Contexto para proveer la función de confirmación de edición de celdas.
- * `useInlineCellEdit` la leerá desde aquí, sin alterar su firma.
+ * Contexto que provee la función "handleConfirmCellEdit" para editar celdas.
+ * El hook "useInlineCellEdit" (o tu TableBody) la leerá directamente sin
+ * cambiar su firma.
  */
 export const TableEditContext = createContext(null);
 
 /**
  * @typedef {Object} CustomTableProps
- * @property {Array<Object>}  data           - Datos (filas) iniciales.
- * @property {Array<Object>}  columnsDef     - Definición de columnas.
+ * @property {Array<Object>}  data                   - Array de filas iniciales (SSR o fetch).
+ * @property {Array<Object>}  columnsDef             - Definición de columnas para React Table.
  * @property {string}         [themeMode='light']
  * @property {number}         [pageSize=50]
  * @property {boolean}        [loading=false]
@@ -59,49 +58,51 @@ export const TableEditContext = createContext(null);
  */
 
 /**
- * CustomTableRefactored
- * ----------------------------------------------------------------------------------
- * @param {CustomTableProps} props
+ * CustomTable
+ * ----------------------------------------------------------------------------
+ * Envuelve toda la lógica de la tabla (filtros, sorting, edición de celdas, etc.).
  */
-export default function CustomTableRefactored({
+export default function CustomTable({
   data,
   columnsDef,
   themeMode = 'light',
-  pageSize = 50,
+  pageSize = 500,
   loading = false,
   filtersToolbarProps,
   onRefresh,
   showFiltersToolbar = true,
   onHideColumns,
   onHideRows,
-  containerHeight = '400px',
+  containerHeight = '750px',
   rowHeight = 15,
   loadingText = 'Cargando...',
   noResultsText = 'Sin resultados',
   autoCopyDelay = 1000,
 }) {
   /************************************************************************************
-   * 1) Preparar repositorios y servicio
+   * 1) Instanciar repositorios y servicio
    ************************************************************************************/
   const localRepo = new LocalTableDataRepository('myTableData');
-  const remoteRepo = new RemoteCellUpdateRepository('/api/rows/updateCell');
+  // Ajusta la ruta de tu endpoint remoto para actualizar la DB:
+  const remoteRepo = new RemoteCellUpdateRepository('/api/user/update');
+
   const cellDataService = new CellDataService(localRepo, remoteRepo);
 
   /************************************************************************************
-   * 2) Hook de orquestación de edición
+   * 2) Hook de orquestación (edición de celdas)
    ************************************************************************************/
   const { handleConfirmCellEdit, loadLocalDataOrDefault } =
     useCellEditingOrchestration(cellDataService);
 
   /************************************************************************************
-   * 3) Estado local de la data (para SSR -> CSR)
+   * 3) Estado local de la data y control de hidratación
    ************************************************************************************/
   const [tableData, setTableData] = useState(data);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
-    // Sobrescribimos con la data en localStorage (si existe) una vez montado en el cliente
+    // Cargamos cualquier data que exista en localStorage (prioridad) sobre la del SSR
     const loaded = loadLocalDataOrDefault(data);
     if (loaded) {
       setTableData(loaded);
@@ -109,8 +110,7 @@ export default function CustomTableRefactored({
   }, [data, loadLocalDataOrDefault]);
 
   /************************************************************************************
-   * 4) Proveer handleConfirmCellEdit a través de TableEditContext
-   *    -> useInlineCellEdit lo leerá sin cambiar su firma
+   * 4) Proveer handleConfirmCellEdit mediante Context
    ************************************************************************************/
   const handleConfirmEditCellContext = (rowId, colId, newValue) => {
     if (!isHydrated) return;
@@ -118,14 +118,13 @@ export default function CustomTableRefactored({
   };
 
   /************************************************************************************
-   * 5) Modo de tema
+   * 5) Manejo de tema (claro/oscuro) con tu hook useThemeMode
    ************************************************************************************/
   const { themeMode: internalMode, isDarkMode, toggleThemeMode } =
     useThemeMode(themeMode);
 
   /************************************************************************************
-   * 6) Lógica de la tabla con react-table: useCustomTableLogic
-   *    -> Pásale tableData en lugar de data
+   * 6) Lógica de la tabla con React Table (useCustomTableLogic)
    ************************************************************************************/
   const {
     table,
@@ -148,7 +147,7 @@ export default function CustomTableRefactored({
   const containerRef = useRef(null);
 
   /************************************************************************************
-   * 7) Render
+   * 7) Render Final
    ************************************************************************************/
   return (
     <TableEditContext.Provider value={{ handleConfirmCellEdit: handleConfirmEditCellContext }}>
@@ -184,7 +183,7 @@ export default function CustomTableRefactored({
           </div>
         )}
 
-        {/* [B] Contenedor principal de la tabla */}
+        {/* [B] Contenedor principal (tabla + paginación) */}
         <div
           ref={containerRef}
           style={{
@@ -221,7 +220,7 @@ export default function CustomTableRefactored({
           />
         </div>
 
-        {/* [C] Overlay de carga (opcional) */}
+        {/* [C] Overlay de carga */}
         {loading && (
           <div
             style={{
@@ -260,6 +259,7 @@ export default function CustomTableRefactored({
         )}
       </div>
 
+      {/* Animación */}
       <style jsx>{`
         @keyframes pulse {
           0% {

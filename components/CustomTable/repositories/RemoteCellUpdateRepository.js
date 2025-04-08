@@ -4,44 +4,61 @@
  *
  * DESCRIPCIÓN:
  * ----------------------------------------------------------------------------------
- *   - Repositorio que maneja la actualización de datos en la DB vía API HTTP.
- *   - Supone que existe un endpoint real: "/api/rows/updateCell".
+ *   - Clase que hace la llamada POST a tu backend (Next.js),
+ *   - Mandando un body con { id, field, value } para actualizar la DB.
  *
- * PRINCIPIOS SOLID:
- * ----------------------------------------------------------------------------------
- *   - SRP: Sólo realiza la operación HTTP para actualizar una celda.
- *   - DIP: Otros servicios/hook lo consumen sin atar su implementación.
  ************************************************************************************/
 
 export class RemoteCellUpdateRepository {
-  constructor(apiEndpoint = '/api/rows/updateCell') {
+  /**
+   * @param {string} apiEndpoint - Ruta de tu endpoint en Next.js (ej: '/api/user/update')
+   */
+  constructor(apiEndpoint) {
     this.apiEndpoint = apiEndpoint;
   }
 
   /**
-   * Actualiza en la DB el valor de la celda indicada.
-   * @param {number|string} dbId  - ID de la fila en la DB.
-   * @param {string} colId       - Nombre de la columna (en la DB).
-   * @param {string} newValue    - Valor nuevo.
-   * @returns {Promise<void>}
-   * @throws {Error} si la petición falla.
+   * updateCell
+   * ----------------------------------------------------------------------------
+   * Hace POST con id, field y value al endpoint configurado en el constructor.
+   * Retorna true/false según el resultado.
+   *
+   * @param {number|string} rowId  - ID real en la DB.
+   * @param {string}        field  - Nombre de la columna.
+   * @param {string}        newValue - Valor a asignar.
+   * @returns {Promise<boolean>}
    */
-  async updateCell(dbId, colId, newValue) {
-    // Ajusta el body según lo que tu endpoint requiera
-    const body = {
-      dbId,
-      colId,
-      newValue,
-    };
+  async updateCell(rowId, field, newValue) {
+    try {
+      const resp = await fetch(this.apiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: rowId,
+          field: field,
+          value: newValue,
+        }),
+      });
 
-    const response = await fetch(this.apiEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+      if (!resp.ok) {
+        console.error(
+          `RemoteCellUpdateRepository.updateCell: status=${resp.status}`,
+          await resp.text()
+        );
+        return false;
+      }
 
-    if (!response.ok) {
-      throw new Error(`Error al actualizar la celda [dbId=${dbId}, colId=${colId}] en la DB`);
+      const data = await resp.json();
+      if (data?.error) {
+        console.error('API error:', data.error);
+        return false;
+      }
+
+      // Éxito
+      return true;
+    } catch (error) {
+      console.error('Excepción en updateCell:', error);
+      return false;
     }
   }
 }

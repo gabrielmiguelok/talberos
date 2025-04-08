@@ -5,13 +5,14 @@
  * DESCRIPCIÓN:
  * ----------------------------------------------------------------------------------
  *   - Hook que orquesta la edición de celdas, usando CellDataService por debajo.
- *   - Devuelve una función "handleConfirmCellEdit" que tu tabla puede invocar.
- *   - Devuelve también "loadLocalDataOrDefault" para inicializar tu state.
+ *   - Devuelve:
+ *       (a) handleConfirmCellEdit(...) para confirmar la edición de una celda.
+ *       (b) loadLocalDataOrDefault(...) para inicializar tu estado desde localStorage.
  *
  * PRINCIPIOS SOLID:
  * ----------------------------------------------------------------------------------
  *   - SRP: Se dedica a orquestar la edición y la carga inicial desde localStorage.
- *   - DIP: Recibe las instancias de los repositorios/servicio inyectados.
+ *   - DIP: Recibe la instancia del servicio (cellDataService) por inyección.
  ************************************************************************************/
 
 import { useCallback } from 'react';
@@ -20,48 +21,47 @@ export function useCellEditingOrchestration(cellDataService) {
   /**
    * handleConfirmCellEdit
    * ------------------------------------------------------------------
-   * - Recibe rowId (índice local), colId, newValue
-   * - Usa el servicio para hacer update local + remoto (si dbId).
-   *
-   * @param {number|string} rowId    - Índice local que usas en tableData.
-   * @param {string}        colId    - ID/clave de la columna.
-   * @param {string}        newValue - Valor actualizado.
-   * @param {Array<Object>} tableData - El estado actual de la tabla.
-   * @param {Function}      setTableData - Setter de estado.
+   * Maneja la confirmación de la edición de una celda.
+   *  1) rowId: índice local de la fila (no el id de BD).
+   *  2) colId: identificador de la columna.
+   *  3) newValue: valor nuevo a guardar.
+   *  4) tableData: array de filas que tienes en el state.
+   *  5) setTableData: setter de ese state.
    */
   const handleConfirmCellEdit = useCallback(
     async (rowId, colId, newValue, tableData, setTableData) => {
-      // Aseguramos que rowId sea entero, si te sirve
+      // rowId suele ser el índice local, lo convertimos a entero
       const localRowIndex = parseInt(rowId, 10);
       if (isNaN(localRowIndex)) {
         console.warn(`handleConfirmCellEdit: rowId inválido (${rowId}).`);
         return;
       }
 
-      const newRows = await cellDataService.updateCellValue(
+      // Pedimos al servicio que actualice localmente y remoto
+      const updatedRows = await cellDataService.updateCellValue(
         tableData,
         localRowIndex,
         colId,
-        newValue,
+        newValue
       );
 
-      // Actualizar estado con la versión final
-      setTableData(newRows);
+      // Guardamos en el state la nueva versión
+      setTableData(updatedRows);
     },
-    [cellDataService],
+    [cellDataService]
   );
 
   /**
    * loadLocalDataOrDefault
    * ------------------------------------------------------------------
-   * - Dado un array proveniente de SSR, retorna la data local si existe.
-   * @param {Array<Object>} currentRows
+   *  - Si hay datos guardados en localStorage, los carga.
+   *  - De lo contrario, retorna los que llegan desde SSR (o prop).
    */
   const loadLocalDataOrDefault = useCallback(
     (currentRows) => {
       return cellDataService.loadLocalDataOrDefault(currentRows);
     },
-    [cellDataService],
+    [cellDataService]
   );
 
   return {
