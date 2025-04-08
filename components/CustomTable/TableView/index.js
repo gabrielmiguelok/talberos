@@ -22,9 +22,10 @@
  *
  * Versión:
  * ----------------------------------------------------------------------------------
- *   - 6.0
- *     - Se agrega "isDarkMode" como prop para mostrar distinto color de fila resaltada.
- *     - Ajuste en TableBody para reflejar el cambio de modo oscuro en el background.
+ *   - 6.1
+ *     - Se mantiene "isDarkMode" como prop para alternar color de fila destacada.
+ *     - Se restaura el comportamiento de scroll automático al navegar celdas,
+ *       usando un `containerRef` propio local (como en la versión anterior).
  *
  ************************************************************************************/
 
@@ -53,6 +54,7 @@ import {
   selectEntireColumn as _selectEntireColumn,
   selectAllCells as _selectAllCells,
 } from './logic/selectionLogic';
+
 import { getCellsInfo } from './logic/domUtils';
 import getSafeDisplayValue from './utils/getSafeDisplayValue';
 
@@ -87,7 +89,7 @@ import { SELECTED_CELL_CLASS, COPIED_CELL_CLASS } from './subcomponents/tableVie
  * @property {string}     loadingText           - Texto mientras carga.
  * @property {string}     noResultsText         - Texto si no hay datos.
  * @property {number}     autoCopyDelay         - Delay para auto-copy en ms.
- * @property {React.Ref}  containerRef          - Referencia al contenedor scrolleable (opcional).
+ * @property {React.Ref}  containerRef          - Referencia opcional (no se usa para el scroll principal).
  * @property {boolean}    isDarkMode            - Indica si el modo oscuro está activo.
  */
 
@@ -96,6 +98,12 @@ import { SELECTED_CELL_CLASS, COPIED_CELL_CLASS } from './subcomponents/tableVie
  * ----------------------------------------------------------------------------------
  * Orquesta la vista de la tabla + paginación sticky + popovers. Se basa en subcomponentes
  * y hooks para manejar la selección, edición, resize de columnas, etc.
+ *
+ * NOTA IMPORTANTE:
+ *   Se mantiene un `containerRef` propio para garantizar el scroll automático
+ *   al navegar o seleccionar celdas con el teclado (comportamiento de la versión 5.x).
+ *   El prop `containerRef` sigue existiendo para casos externos, pero no modifica
+ *   el contenedor scrolleable donde ocurre la selección.
  *
  * @param {TableViewProps} props - Propiedades del componente
  * @returns {JSX.Element}
@@ -118,14 +126,15 @@ export default function TableView({
   loadingText = 'Cargando datos...',
   noResultsText = 'Sin resultados',
   autoCopyDelay = 1000,
+  // containerRef prop queda disponible, pero no se usa para el scroll local
   containerRef,
-  isDarkMode = false, // <-- Se agrega la prop isDarkMode
+  isDarkMode = false,
 }) {
   /************************************************************************************
-   * [A] Referencia local (sólo si no recibimos una en props)
+   * [A] Referencia local para el contenedor que maneja el scroll
+   *     Se fuerza su uso para el scroll (regresando al comportamiento anterior).
    ************************************************************************************/
   const localContainerRef = useRef(null);
-  const finalContainerRef = containerRef || localContainerRef;
 
   /************************************************************************************
    * [1] Filas de la tabla
@@ -137,7 +146,7 @@ export default function TableView({
    * [2] Selección de celdas (useCellSelection)
    ************************************************************************************/
   function _getCellsInfo() {
-    return getCellsInfo(finalContainerRef, table);
+    return getCellsInfo(localContainerRef, table);
   }
   const {
     selectedCells,
@@ -147,33 +156,37 @@ export default function TableView({
     setFocusCell,
     setAnchorCell,
     handleKeyDownArrowSelection,
-  } = useCellSelection(finalContainerRef, _getCellsInfo, displayedData, columnsDef, table);
+  } = useCellSelection(localContainerRef, _getCellsInfo, displayedData, columnsDef, table);
 
   // Manejo de flechas (↑↓←→) cuando la tabla tiene foco
   useEffect(() => {
     const handleKeyDown = (evt) => {
-      // Verificamos que el foco esté dentro del contenedor
-      if (!finalContainerRef.current?.contains(document.activeElement)) return;
+      // Verificamos que el foco esté dentro del contenedor local
+      if (!localContainerRef.current?.contains(document.activeElement)) return;
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(evt.key)) {
         handleKeyDownArrowSelection(evt);
       }
     };
-    finalContainerRef.current?.addEventListener('keydown', handleKeyDown);
+    localContainerRef.current?.addEventListener('keydown', handleKeyDown);
     return () => {
-      finalContainerRef.current?.removeEventListener('keydown', handleKeyDown);
+      localContainerRef.current?.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handleKeyDownArrowSelection, finalContainerRef]);
+  }, [handleKeyDownArrowSelection]);
 
   /************************************************************************************
    * [3] Copiado de celdas (useClipboardCopy)
    ************************************************************************************/
   const { copiedCells, setCopiedCells } = useClipboardCopy(
-    finalContainerRef,
+    localContainerRef,
     selectedCells,
     displayedData,
     columnsDef
   );
 
+  /**
+   * Copia las celdas seleccionadas al portapapeles en formato TSV.
+   * @param {Array} cellsToCopy
+   */
   async function doCopyCells(cellsToCopy) {
     if (!cellsToCopy?.length) return;
     if (!document.hasFocus()) {
@@ -181,10 +194,11 @@ export default function TableView({
       return;
     }
     try {
-      // Mapear rowId -> valores de celdas
+      // Mapa de rowId -> datos de fila
       const dataMap = new Map();
       rows.forEach((r) => dataMap.set(r.id, r.original));
 
+      // Recorremos las celdas a copiar y las agrupamos por fila
       const rowsMap = new Map();
       cellsToCopy.forEach((cell) => {
         const rowData = dataMap.get(cell.id);
@@ -194,7 +208,7 @@ export default function TableView({
         rowsMap.set(cell.id, arr);
       });
 
-      // Convertir a TSV
+      // Convertimos a TSV
       const tsvLines = [];
       for (const [, rowCells] of rowsMap.entries()) {
         tsvLines.push(rowCells.join('\t'));
@@ -210,8 +224,6 @@ export default function TableView({
 
   /************************************************************************************
    * [4] Edición en línea (useInlineCellEdit)
-   * ------------------------------------------------------------------
-   * El hook lee la función "handleConfirmCellEdit" desde el TableEditContext.
    ************************************************************************************/
   const {
     editingCell,
@@ -259,12 +271,20 @@ export default function TableView({
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuColumnId, setMenuColumnId] = useState(null);
 
+  /**
+   * Abre el menú de filtros para la columna clickeada.
+   * @param {React.MouseEvent} evt
+   * @param {string} columnId
+   */
   const handleOpenMenu = (evt, columnId) => {
     evt.stopPropagation();
     setAnchorEl(evt.currentTarget);
     setMenuColumnId(columnId);
   };
 
+  /**
+   * Cierra el menú de filtros de columna.
+   */
   const handleCloseMenu = () => {
     setAnchorEl(null);
     setMenuColumnId(null);
@@ -278,6 +298,7 @@ export default function TableView({
   const [isDraggingRows, setIsDraggingRows] = useState(false);
   const [startRowIndex, setStartRowIndex] = useState(null);
 
+  // Estado centralizado para manejar el drag en curso
   const dragStateRef = useRef({
     isDraggingCols: false,
     isDraggingRows: false,
@@ -285,9 +306,13 @@ export default function TableView({
     startRowIndex: null,
   });
 
+  /**
+   * Efecto que inicializa listeners globales para detección de
+   * arrastre (drag) en columnas/filas.
+   */
   useEffect(() => {
     const cleanup = initDragListeners({
-      containerRef: finalContainerRef,
+      containerRef: localContainerRef, // <-- uso exclusivo del contenedor local
       setIsDraggingColumns,
       setIsDraggingRows,
       setStartColIndex,
@@ -302,14 +327,23 @@ export default function TableView({
       },
     });
     return cleanup;
-  }, [rows, finalContainerRef]);
+  }, [rows]);
 
+  /**
+   * Handlers para el mousedown/touchstart en los headers
+   * (selección de columnas).
+   */
   const onHeaderMouseDown = (evt, colIndex, colId) => {
     handleHeaderMouseDown(evt, colIndex, colId, dragStateRef, setIsDraggingColumns, setStartColIndex);
   };
   const onHeaderTouchStart = (evt, colIndex, colId) => {
     handleHeaderTouchStart(evt, colIndex, colId, dragStateRef, setIsDraggingColumns, setStartColIndex);
   };
+
+  /**
+   * Handlers para el mousedown/touchstart en la columna índice
+   * (selección de filas).
+   */
   const onRowIndexMouseDown = (evt, rowIndex, rowId) => {
     handleRowIndexMouseDown(evt, rowIndex, rowId, selectEntireRow, dragStateRef, setIsDraggingRows, setStartRowIndex);
   };
@@ -320,6 +354,11 @@ export default function TableView({
   /************************************************************************************
    * [9] Funciones de selección (columnas/filas/rangos)
    ************************************************************************************/
+  /**
+   * Selección de un rango de columnas (drag).
+   * @param {number} start
+   * @param {number} end
+   */
   function selectColumnRangeAction(start, end) {
     const visibleCols = table.getVisibleFlatColumns();
     const newSelection = selectColumnRange({ rows, visibleCols, start, end });
@@ -328,6 +367,11 @@ export default function TableView({
     setFocusCell({ rowIndex: 0, colIndex: Math.min(start, end) });
   }
 
+  /**
+   * Selección de un rango de filas (drag).
+   * @param {number} start
+   * @param {number} end
+   */
   function selectRowRangeAction(start, end) {
     const visibleCols = table.getVisibleFlatColumns();
     const newSelection = selectRowRange({ rows, visibleCols, start, end });
@@ -336,6 +380,11 @@ export default function TableView({
     setFocusCell({ rowIndex: Math.min(start, end), colIndex: 1 });
   }
 
+  /**
+   * Selecciona la fila completa dada por rIndex y rowId.
+   * @param {number} rIndex
+   * @param {string} rowId
+   */
   function selectEntireRow(rIndex, rowId) {
     const visibleCols = table.getVisibleFlatColumns();
     const newCells = _selectEntireRow({ rowIndex: rIndex, rowId, visibleCols });
@@ -344,6 +393,11 @@ export default function TableView({
     setFocusCell({ rowIndex: rIndex, colIndex: 1 });
   }
 
+  /**
+   * Selecciona la columna completa dada por colIndex y colId.
+   * @param {number} colIndex
+   * @param {string} colId
+   */
   function selectEntireColumn(colIndex, colId) {
     const newSelection = _selectEntireColumn({ rows, colId });
     setSelectedCells(newSelection);
@@ -351,6 +405,9 @@ export default function TableView({
     setFocusCell({ rowIndex: 0, colIndex });
   }
 
+  /**
+   * Selecciona todas las celdas de la tabla.
+   */
   function selectAllCells() {
     const visibleCols = table.getVisibleFlatColumns();
     const allCells = _selectAllCells({ rows, visibleCols });
@@ -359,25 +416,36 @@ export default function TableView({
     setFocusCell({ rowIndex: 0, colIndex: 1 });
   }
 
+  /**
+   * Lógica para el click en el header (sin drag): seleccionar
+   * la columna entera o la tabla completa si es la columna índice.
+   * @param {MouseEvent} evt
+   * @param {number} colIndex
+   * @param {string} colId
+   */
   function handleHeaderClick(evt, colIndex, colId) {
+    // Ignoramos el click si es en la manija de resize
     if (evt.target.classList.contains('resize-handle')) return;
+    // Selección global si se cliquea la columna índice
     if (colId === '_selectIndex') {
       selectAllCells();
       return;
     }
+    // Si no, seleccionamos la columna entera
     selectEntireColumn(colIndex, colId);
   }
 
   /************************************************************************************
-   * [10] Resaltar fila actual
+   * [10] Resaltar fila actual (cuando se hace click en una celda)
    ************************************************************************************/
   const [highlightedRowIndex, setHighlightedRowIndex] = useState(null);
+
   function handleCellClick(rIndex) {
     setHighlightedRowIndex(rIndex);
   }
 
   /************************************************************************************
-   * [11] Determinar ancho inicial de columnas
+   * [11] Determinar ancho inicial de columnas (para colgroup)
    ************************************************************************************/
   function getColumnDefWidth(colId) {
     const col = originalColumnsDef.find((c) => c.accessorKey === colId);
@@ -397,9 +465,13 @@ export default function TableView({
         overflow: 'hidden',
       }}
     >
-      {/* A) Contenedor scrolleable principal */}
+      {/*
+        A) Contenedor scrolleable principal.
+        Usamos localContainerRef para mantener el scroll y la selección
+        con la misma experiencia de la versión anterior.
+      */}
       <Box
-        ref={finalContainerRef}
+        ref={localContainerRef}
         onContextMenu={handleContextMenu}
         sx={{
           flex: 1,
@@ -499,7 +571,10 @@ export default function TableView({
         />
       </Box>
 
-      {/* B) Barra de paginación sticky */}
+      {/*
+        B) Barra de paginación sticky al final.
+        Se mantiene en la parte inferior (sticky) dentro del contenedor principal.
+      */}
       <Box
         sx={{
           position: 'sticky',
