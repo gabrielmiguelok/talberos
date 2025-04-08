@@ -10,57 +10,66 @@
  *
  * PRINCIPIOS SOLID APLICADOS:
  * ----------------------------------------------------------------------------------
- *   - SRP, OCP, DIP, etc.
- *   - DRY: Evitamos duplicar la lógica para "confirmar edición".
+ *   - SRP (Single Responsibility Principle): Se encarga de orquestar la configuración
+ *       general de la tabla (tema, edición, repositorios, etc.).
+ *   - OCP (Open/Closed Principle): Es fácil de extender (por ej. con nuevas props)
+ *       sin modificar su núcleo.
+ *   - DIP (Dependency Inversion): Se inyectan dependencias como repos y servicios.
+ *   - DRY: Evita duplicar la lógica de edición, ya que se delega al hook.
  *
  * VERSION:
  * ----------------------------------------------------------------------------------
- *   - 3.0 (refactor con repos + servicios).
+ *   - 3.1 (refactor con repos + servicios, + "isDarkMode" propagado).
  *
  ************************************************************************************/
 
 import React, { useRef, useState, useEffect, createContext } from 'react';
-import { useCustomTableLogic } from './hooks/useCustomTableLogic'; // tu hook de React Table
-import { useThemeMode } from './hooks/useThemeMode';              // tu hook de tema
-import FiltersToolbar from './toolbar/FiltersToolbar';            // barra de filtros
-import TableSection from './TableView';                           // sub-componente principal
+import { useCustomTableLogic } from './hooks/useCustomTableLogic';  // Hook de React Table (sorting/filtros)
+import { useThemeMode } from './hooks/useThemeMode';               // Hook para tema claro/oscuro
+import FiltersToolbar from './toolbar/FiltersToolbar';             // Barra de filtros
+import TableSection from './TableView';                           // Sub-componente principal (Tabla)
 import { useCellEditingOrchestration } from './hooks/useCellEditingOrchestration';
 
-// Repos y Service
+// Repos y servicios
 import { LocalTableDataRepository } from './repositories/LocalTableDataRepository';
 import { RemoteCellUpdateRepository } from './repositories/RemoteCellUpdateRepository';
 import { CellDataService } from './services/CellDataService';
 
 /**
  * Contexto que provee la función "handleConfirmCellEdit" para editar celdas.
- * El hook "useInlineCellEdit" (o tu TableBody) la leerá directamente sin
- * cambiar su firma.
+ * El hook "useInlineCellEdit" (o en el cuerpo de la tabla) la leerá sin
+ * cambiar su firma, delegando la implementación a este componente.
  */
 export const TableEditContext = createContext(null);
 
 /**
  * @typedef {Object} CustomTableProps
- * @property {Array<Object>}  data                   - Array de filas iniciales (SSR o fetch).
- * @property {Array<Object>}  columnsDef             - Definición de columnas para React Table.
- * @property {string}         [themeMode='light']
- * @property {number}         [pageSize=50]
- * @property {boolean}        [loading=false]
- * @property {Object}         [filtersToolbarProps]
- * @property {Function}       [onRefresh]
- * @property {boolean}        [showFiltersToolbar=true]
- * @property {Function}       [onHideColumns]
- * @property {Function}       [onHideRows]
- * @property {string}         [containerHeight='400px']
- * @property {number}         [rowHeight=15]
- * @property {string}         [loadingText='Cargando...']
- * @property {string}         [noResultsText='Sin resultados']
- * @property {number}         [autoCopyDelay=1000]
+ * @property {Array<Object>}  data               - Filas iniciales (SSR o fetch).
+ * @property {Array<Object>}  columnsDef         - Definición de columnas para React Table.
+ * @property {string}         [themeMode='light']- Modo de tema inicial ('light' o 'dark').
+ * @property {number}         [pageSize=500]     - Tamaño de página de la tabla.
+ * @property {boolean}        [loading=false]    - Indica si se está cargando.
+ * @property {Object}         [filtersToolbarProps] - Props extras para la barra de filtros.
+ * @property {Function}       [onRefresh]        - Callback para refrescar datos.
+ * @property {boolean}        [showFiltersToolbar=true] - Muestra/oculta la barra de filtros.
+ * @property {Function}       [onHideColumns]    - Callback para ocultar columnas.
+ * @property {Function}       [onHideRows]       - Callback para ocultar filas.
+ * @property {string}         [containerHeight='750px'] - Alto del contenedor de la tabla.
+ * @property {number}         [rowHeight=15]     - Altura de las filas en px.
+ * @property {string}         [loadingText='Cargando...'] - Texto mientras carga.
+ * @property {string}         [noResultsText='Sin resultados'] - Texto si no hay datos.
+ * @property {number}         [autoCopyDelay=1000] - Delay para "autoCopy".
  */
 
 /**
  * CustomTable
- * ----------------------------------------------------------------------------
- * Envuelve toda la lógica de la tabla (filtros, sorting, edición de celdas, etc.).
+ * ----------------------------------------------------------------------------------
+ * Componente principal que unifica:
+ *  - Tema claro/oscuro (useThemeMode)
+ *  - Orquestación de edición local/remota (useCellEditingOrchestration)
+ *  - React Table (filtros, sorting) vía useCustomTableLogic
+ *  - Barra de filtros (FiltersToolbar)
+ *  - Render final de la tabla (TableSection)
  */
 export default function CustomTable({
   data,
@@ -80,29 +89,27 @@ export default function CustomTable({
   autoCopyDelay = 1000,
 }) {
   /************************************************************************************
-   * 1) Instanciar repositorios y servicio
+   * 1) Instanciar repositorios y servicio para edición de celdas
    ************************************************************************************/
   const localRepo = new LocalTableDataRepository('myTableData');
-  // Ajusta la ruta de tu endpoint remoto para actualizar la DB:
   const remoteRepo = new RemoteCellUpdateRepository('/api/user/update');
-
   const cellDataService = new CellDataService(localRepo, remoteRepo);
 
   /************************************************************************************
-   * 2) Hook de orquestación (edición de celdas)
+   * 2) Hook de orquestación de edición (useCellEditingOrchestration)
    ************************************************************************************/
   const { handleConfirmCellEdit, loadLocalDataOrDefault } =
     useCellEditingOrchestration(cellDataService);
 
   /************************************************************************************
-   * 3) Estado local de la data y control de hidratación
+   * 3) Estado local para almacenar la data en la tabla y control de hidratación
    ************************************************************************************/
   const [tableData, setTableData] = useState(data);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
-    // Cargamos cualquier data que exista en localStorage (prioridad) sobre la del SSR
+    // Cargar data de localStorage si existe, sobrescribiendo la proveniente de SSR
     const loaded = loadLocalDataOrDefault(data);
     if (loaded) {
       setTableData(loaded);
@@ -118,13 +125,13 @@ export default function CustomTable({
   };
 
   /************************************************************************************
-   * 5) Manejo de tema (claro/oscuro) con tu hook useThemeMode
+   * 5) Manejo de tema (claro/oscuro) con el hook useThemeMode
    ************************************************************************************/
   const { themeMode: internalMode, isDarkMode, toggleThemeMode } =
     useThemeMode(themeMode);
 
   /************************************************************************************
-   * 6) Lógica de la tabla con React Table (useCustomTableLogic)
+   * 6) Lógica de React Table (sorting, filtros, descargas) con useCustomTableLogic
    ************************************************************************************/
   const {
     table,
@@ -159,7 +166,14 @@ export default function CustomTable({
           position: 'relative',
         }}
       >
-        {/* [A] Barra de filtros (opcional) */}
+        {/*
+          [A] Barra de filtros (opcional).
+          Incluye:
+            - Filtro global.
+            - Descarga Excel.
+            - Refresh.
+            - Toggle tema claro/oscuro.
+        */}
         {showFiltersToolbar && (
           <div
             style={{
@@ -183,7 +197,11 @@ export default function CustomTable({
           </div>
         )}
 
-        {/* [B] Contenedor principal (tabla + paginación) */}
+        {/*
+          [B] Contenedor principal (tabla + paginación).
+          Se pasa "isDarkMode" a <TableSection> para que las filas
+          puedan cambiar de color (claro/oscuro).
+        */}
         <div
           ref={containerRef}
           style={{
@@ -217,10 +235,14 @@ export default function CustomTable({
             noResultsText={noResultsText}
             autoCopyDelay={autoCopyDelay}
             containerRef={containerRef}
+            // ¡IMPORTANTE! Aquí propagamos el isDarkMode
+            isDarkMode={isDarkMode}
           />
         </div>
 
-        {/* [C] Overlay de carga */}
+        {/*
+          [C] Overlay de carga, si loading = true
+        */}
         {loading && (
           <div
             style={{
@@ -259,7 +281,7 @@ export default function CustomTable({
         )}
       </div>
 
-      {/* Animación */}
+      {/* Animación (p.ej. overlay de carga pulsante) */}
       <style jsx>{`
         @keyframes pulse {
           0% {

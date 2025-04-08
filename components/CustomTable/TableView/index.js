@@ -22,15 +22,16 @@
  *
  * Versión:
  * ----------------------------------------------------------------------------------
- *   - 5.5
- *     - Ajustado para leer la función de confirmación de edición desde un contexto,
- *       sin alterar su firma pública.
+ *   - 6.0
+ *     - Se agrega "isDarkMode" como prop para mostrar distinto color de fila resaltada.
+ *     - Ajuste en TableBody para reflejar el cambio de modo oscuro en el background.
  *
  ************************************************************************************/
 
 import React, { useRef, useState, useEffect } from 'react';
 import { Box } from '@mui/material';
 
+// Hooks especializados
 import useCellSelection from './hooks/useCellSelection';
 import useClipboardCopy from './hooks/useClipboardCopy';
 import useColumnResize from './hooks/useColumnResize';
@@ -44,6 +45,7 @@ import {
   handleRowIndexMouseDown,
   handleRowIndexTouchStart,
 } from './logic/dragLogic';
+
 import {
   selectColumnRange,
   selectRowRange,
@@ -54,7 +56,7 @@ import {
 import { getCellsInfo } from './logic/domUtils';
 import getSafeDisplayValue from './utils/getSafeDisplayValue';
 
-// Subcomponentes
+// Subcomponentes y overlays
 import LoadingOverlay from './subcomponents/LoadingOverlay';
 import NoResultsOverlay from './subcomponents/NoResultsOverlay';
 import TableHeader from './subcomponents/TableHeader';
@@ -63,12 +65,41 @@ import ContextualMenu from './subcomponents/ContextualMenu';
 import ColumnFilterPopover from './subcomponents/ColumnFilterPopover';
 import Pagination from './subcomponents/Pagination';
 
-// Estilos/selección
-import {
-  SELECTED_CELL_CLASS,
-  COPIED_CELL_CLASS,
-} from './subcomponents/tableViewVisualEffects';
+// Estilos (clases de selección/copias)
+import { SELECTED_CELL_CLASS, COPIED_CELL_CLASS } from './subcomponents/tableViewVisualEffects';
 
+/**
+ * @typedef {Object} TableViewProps
+ * @property {object}     table                 - Instancia creada por React Table (con filas/columnas).
+ * @property {boolean}    loading               - Indica si se está cargando.
+ * @property {object}     columnFilters         - Estado de filtros de columnas.
+ * @property {Function}   updateColumnFilter    - Func. para actualizar filtros.
+ * @property {Array}      columnsDef            - Definición de columnas.
+ * @property {Array}      originalColumnsDef    - Def. original de columnas (para resizing).
+ * @property {object}     columnWidths          - Mapa con anchos actuales de cada columna.
+ * @property {Function}   setColumnWidth        - Callback p/ actualizar ancho de columna.
+ * @property {Function}   onHideColumns         - Callback p/ ocultar columnas.
+ * @property {Function}   onHideRows            - Callback p/ ocultar filas.
+ * @property {Array}      sorting               - Estado de ordenamiento.
+ * @property {Function}   toggleSort            - Alternar el ordenamiento.
+ * @property {string}     containerHeight       - Alto del contenedor principal (e.g. '400px').
+ * @property {number}     rowHeight             - Altura de cada fila en px.
+ * @property {string}     loadingText           - Texto mientras carga.
+ * @property {string}     noResultsText         - Texto si no hay datos.
+ * @property {number}     autoCopyDelay         - Delay para auto-copy en ms.
+ * @property {React.Ref}  containerRef          - Referencia al contenedor scrolleable (opcional).
+ * @property {boolean}    isDarkMode            - Indica si el modo oscuro está activo.
+ */
+
+/**
+ * TableView
+ * ----------------------------------------------------------------------------------
+ * Orquesta la vista de la tabla + paginación sticky + popovers. Se basa en subcomponentes
+ * y hooks para manejar la selección, edición, resize de columnas, etc.
+ *
+ * @param {TableViewProps} props - Propiedades del componente
+ * @returns {JSX.Element}
+ */
 export default function TableView({
   table,
   loading,
@@ -83,16 +114,18 @@ export default function TableView({
   sorting,
   toggleSort,
   containerHeight = '400px',
-
   rowHeight = 15,
   loadingText = 'Cargando datos...',
   noResultsText = 'Sin resultados',
   autoCopyDelay = 1000,
+  containerRef,
+  isDarkMode = false, // <-- Se agrega la prop isDarkMode
 }) {
   /************************************************************************************
-   * [A] Referencia al contenedor scrolleable
+   * [A] Referencia local (sólo si no recibimos una en props)
    ************************************************************************************/
-  const containerRef = useRef(null);
+  const localContainerRef = useRef(null);
+  const finalContainerRef = containerRef || localContainerRef;
 
   /************************************************************************************
    * [1] Filas de la tabla
@@ -104,9 +137,8 @@ export default function TableView({
    * [2] Selección de celdas (useCellSelection)
    ************************************************************************************/
   function _getCellsInfo() {
-    return getCellsInfo(containerRef, table);
+    return getCellsInfo(finalContainerRef, table);
   }
-
   const {
     selectedCells,
     setSelectedCells,
@@ -115,28 +147,28 @@ export default function TableView({
     setFocusCell,
     setAnchorCell,
     handleKeyDownArrowSelection,
-  } = useCellSelection(containerRef, _getCellsInfo, displayedData, columnsDef, table);
+  } = useCellSelection(finalContainerRef, _getCellsInfo, displayedData, columnsDef, table);
 
-  // Manejo de flechas de teclado (ArrowUp/Down/Left/Right)
+  // Manejo de flechas (↑↓←→) cuando la tabla tiene foco
   useEffect(() => {
     const handleKeyDown = (evt) => {
-      // Verificamos que el foco esté dentro del containerRef
-      if (!containerRef.current?.contains(document.activeElement)) return;
+      // Verificamos que el foco esté dentro del contenedor
+      if (!finalContainerRef.current?.contains(document.activeElement)) return;
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(evt.key)) {
         handleKeyDownArrowSelection(evt);
       }
     };
-    containerRef.current?.addEventListener('keydown', handleKeyDown);
+    finalContainerRef.current?.addEventListener('keydown', handleKeyDown);
     return () => {
-      containerRef.current?.removeEventListener('keydown', handleKeyDown);
+      finalContainerRef.current?.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handleKeyDownArrowSelection]);
+  }, [handleKeyDownArrowSelection, finalContainerRef]);
 
   /************************************************************************************
-   * [3] Copiado (useClipboardCopy)
+   * [3] Copiado de celdas (useClipboardCopy)
    ************************************************************************************/
   const { copiedCells, setCopiedCells } = useClipboardCopy(
-    containerRef,
+    finalContainerRef,
     selectedCells,
     displayedData,
     columnsDef
@@ -149,6 +181,7 @@ export default function TableView({
       return;
     }
     try {
+      // Mapear rowId -> valores de celdas
       const dataMap = new Map();
       rows.forEach((r) => dataMap.set(r.id, r.original));
 
@@ -161,6 +194,7 @@ export default function TableView({
         rowsMap.set(cell.id, arr);
       });
 
+      // Convertir a TSV
       const tsvLines = [];
       for (const [, rowCells] of rowsMap.entries()) {
         tsvLines.push(rowCells.join('\t'));
@@ -177,8 +211,7 @@ export default function TableView({
   /************************************************************************************
    * [4] Edición en línea (useInlineCellEdit)
    * ------------------------------------------------------------------
-   * El hook leerá la función "handleConfirmCellEdit" desde el contexto,
-   * sin requerir cambios en su firma pública.
+   * El hook lee la función "handleConfirmCellEdit" desde el TableEditContext.
    ************************************************************************************/
   const {
     editingCell,
@@ -200,7 +233,7 @@ export default function TableView({
   });
 
   /************************************************************************************
-   * [6] Menú contextual (clic derecho)
+   * [6] Menú contextual (clic derecho) - useTableViewContextMenu
    ************************************************************************************/
   const {
     contextMenu,
@@ -254,7 +287,7 @@ export default function TableView({
 
   useEffect(() => {
     const cleanup = initDragListeners({
-      containerRef,
+      containerRef: finalContainerRef,
       setIsDraggingColumns,
       setIsDraggingRows,
       setStartColIndex,
@@ -269,20 +302,17 @@ export default function TableView({
       },
     });
     return cleanup;
-  }, [rows]);
+  }, [rows, finalContainerRef]);
 
   const onHeaderMouseDown = (evt, colIndex, colId) => {
     handleHeaderMouseDown(evt, colIndex, colId, dragStateRef, setIsDraggingColumns, setStartColIndex);
   };
-
   const onHeaderTouchStart = (evt, colIndex, colId) => {
     handleHeaderTouchStart(evt, colIndex, colId, dragStateRef, setIsDraggingColumns, setStartColIndex);
   };
-
   const onRowIndexMouseDown = (evt, rowIndex, rowId) => {
     handleRowIndexMouseDown(evt, rowIndex, rowId, selectEntireRow, dragStateRef, setIsDraggingRows, setStartRowIndex);
   };
-
   const onRowIndexTouchStart = (evt, rowIndex, rowId) => {
     handleRowIndexTouchStart(evt, rowIndex, rowId, selectEntireRow, dragStateRef, setIsDraggingRows, setStartRowIndex);
   };
@@ -330,14 +360,11 @@ export default function TableView({
   }
 
   function handleHeaderClick(evt, colIndex, colId) {
-    // Evitamos conflicto con el handle del resize
     if (evt.target.classList.contains('resize-handle')) return;
-    // Si se hace clic en la columna índice, seleccionamos toda la tabla
     if (colId === '_selectIndex') {
       selectAllCells();
       return;
     }
-    // Si no, seleccionamos la columna entera
     selectEntireColumn(colIndex, colId);
   }
 
@@ -370,9 +397,9 @@ export default function TableView({
         overflow: 'hidden',
       }}
     >
-      {/* A) CONTENEDOR SCROLLEABLE */}
+      {/* A) Contenedor scrolleable principal */}
       <Box
-        ref={containerRef}
+        ref={finalContainerRef}
         onContextMenu={handleContextMenu}
         sx={{
           flex: 1,
@@ -387,10 +414,10 @@ export default function TableView({
         }}
         tabIndex={0}
       >
-        {/* Loading Overlay */}
+        {/* Overlay de carga */}
         {loading && <LoadingOverlay loadingText={loadingText} />}
 
-        {/* No Results Overlay */}
+        {/* Overlay de "sin resultados" */}
         {!loading && rows.length === 0 && (
           <NoResultsOverlay noResultsText={noResultsText} />
         )}
@@ -442,6 +469,9 @@ export default function TableView({
             onRowIndexMouseDown={onRowIndexMouseDown}
             onRowIndexTouchStart={onRowIndexTouchStart}
             highlightedRowIndex={highlightedRowIndex}
+
+            // ¡Pasamos isDarkMode al cuerpo de la tabla!
+            isDarkMode={isDarkMode}
           />
         </table>
 
@@ -455,7 +485,7 @@ export default function TableView({
           originalColumnsDef={originalColumnsDef}
         />
 
-        {/* MENÚ CONTEXTUAL */}
+        {/* MENÚ CONTEXTUAL (clic derecho) */}
         <ContextualMenu
           contextMenu={contextMenu}
           handleCloseContextMenu={handleCloseContextMenu}
@@ -469,7 +499,7 @@ export default function TableView({
         />
       </Box>
 
-      {/* B) BARRA DE PAGINACIÓN (Sticky) */}
+      {/* B) Barra de paginación sticky */}
       <Box
         sx={{
           position: 'sticky',
