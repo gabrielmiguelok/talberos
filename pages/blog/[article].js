@@ -63,7 +63,7 @@ export default function BlogArticlePage({
   jsonLdData,
 }) {
   const {
-    title = "Artículo sin título",
+    title = "Talberos Open Source",
     description = "Artículo de blog en Talberos",
     image = null,
     keywords = [],

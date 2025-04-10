@@ -1,3 +1,4 @@
+"use client";
 /**
  * MIT License
  * ----------------------------------------------------------------------------
@@ -6,10 +7,10 @@
  * DESCRIPCIÓN:
  *   - Layout específico para renderizar un artículo individual en Talberos.
  *   - Presenta título, descripción, fecha, autor, imagen, índice (TOC) y contenido MD/MDX.
+ *   - Integra ContentBoxLayout para un contenedor de fondo blanco (o configurable).
  *
  * LICENCIA: MIT
  */
-"use client";
 import React, { useState, useEffect } from "react";
 import Head from "next/head";
 import Menu from "@components/landing/Menu";
@@ -17,10 +18,8 @@ import { Box, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import Image from "next/image";
 import { MDXRemote } from "next-mdx-remote";
-import {
-  BLOG_BG_GRADIENT,
-  MAX_CONTENT_WIDTH,
-} from "@constants/blog/blogStyles";
+import ContentBoxLayout from "@components/blog/ContentBoxLayout"; // <-- Nuevo layout
+import { MAX_CONTENT_WIDTH } from "@constants/blog/blogStyles";
 
 export default function BlogArticleLayout({
   title,
@@ -106,7 +105,7 @@ export default function BlogArticleLayout({
       {/* MENÚ PRINCIPAL */}
       <Menu />
 
-      {/* CONTENEDOR PRINCIPAL */}
+      {/* CONTENEDOR PRINCIPAL CON FONDO GRADIENTE */}
       <Box
         component="article"
         role="article"
@@ -116,171 +115,184 @@ export default function BlogArticleLayout({
           minHeight: "100vh",
           pt: isMobile ? 10 : 10,
           overflowX: "hidden",
+          pb: 4,
         }}
       >
+        {/* MÁXIMO ANCHO PARA CENTRAR */}
         <Box
           sx={{
             width: "100%",
             maxWidth: MAX_CONTENT_WIDTH,
             margin: "0 auto",
-            pb: 4,
             px: isMobile ? 2 : 3,
-            background: "transparent",
           }}
         >
-          {children /* contenido adicional opcional */}
+          {/*
+            Encapsulamos el contenido del artículo en el nuevo ContentBoxLayout.
+            Puedes ajustar el 'background' y otros props en ContentBoxLayout
+            si quieres cambiar el color o padding en el futuro.
+          */}
+          <ContentBoxLayout
+            background="#FFFFFF"
+            padding={isMobile ? 2 : 4}
+            marginY={4}
+          >
+            {/* children opcional */}
+            {children}
 
-          {/* CABECERA */}
-          <header style={{ textAlign: "center", marginBottom: "2rem", marginTop: "2rem" }}>
-            <Typography
-              component="h1"
+            {/* CABECERA */}
+            <header
+              style={{ textAlign: "center", marginBottom: "2rem", marginTop: "2rem" }}
+            >
+              <Typography
+                component="h1"
+                sx={{
+                  fontSize: "2.5rem",
+                  fontWeight: "bold",
+                  mb: 1,
+                  color: "#0d47a1",
+                }}
+              >
+                {title}
+              </Typography>
+
+              {description && (
+                <Typography
+                  component="h2"
+                  sx={{ fontSize: "1.2rem", color: "#555555", mb: 2 }}
+                >
+                  {description}
+                </Typography>
+              )}
+
+              {date && (
+                <Typography
+                  component="p"
+                  sx={{ color: "#666666", fontStyle: "italic" }}
+                >
+                  {new Date(date).toLocaleDateString("es-ES", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </Typography>
+              )}
+            </header>
+
+            {/* IMAGEN PRINCIPAL */}
+            {hasCustomImage ? (
+              <Box sx={{ textAlign: "center", mb: 4 }}>
+                <Image
+                  src={image}
+                  alt={`Imagen principal del artículo: ${title}`}
+                  width={1200}
+                  height={600}
+                  priority
+                  style={{
+                    borderRadius: 8,
+                    maxWidth: "100%",
+                    height: "auto",
+                  }}
+                />
+              </Box>
+            ) : (
+              <Box sx={{ textAlign: "center", mb: 4 }}>
+                <Image
+                  src={fallbackImagePng}
+                  alt="Imagen de fallback para artículos"
+                  width={1200}
+                  height={600}
+                  priority
+                  style={{
+                    borderRadius: 8,
+                    maxWidth: "100%",
+                    height: "auto",
+                  }}
+                />
+              </Box>
+            )}
+
+            {/* ÍNDICE AUTOMÁTICO */}
+            {TableOfContents && headings.length > 0 && (
+              <Box sx={{ my: 4 }}>
+                <hr
+                  style={{
+                    border: "none",
+                    borderTop: "2px solid #DDD",
+                    margin: "1.5rem 0",
+                  }}
+                />
+                <TableOfContents headings={headings} />
+                <hr
+                  style={{
+                    border: "none",
+                    borderTop: "2px solid #DDD",
+                    margin: "1.5rem 0",
+                  }}
+                />
+              </Box>
+            )}
+
+            {/* CONTENIDO DEL ARTÍCULO */}
+            <Box
+              component="section"
               sx={{
-                fontSize: "2.5rem",
-                fontWeight: "bold",
-                mb: 1,
-                color: "#0d47a1",
+                color: "#1F1F1F",
+                lineHeight: 1.7,
+                "& h1, & h2, & h3, & h4, & h5, & h6": {
+                  marginTop: "2rem",
+                  marginBottom: "1rem",
+                },
+                "& p": { marginBottom: "1rem" },
+
+                /* ---- Ajustes para código inline (<code>) ---- */
+                "& code": {
+                  backgroundColor: "#2d2d2d",
+                  color: "#f8f8f2",
+                  padding: "0.2rem 0.4rem",
+                  borderRadius: "4px",
+                  fontSize: "0.95rem",
+                  fontFamily:
+                    "SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace",
+                },
+
+                /* ---- Ajustes para bloques de código (<pre>) ---- */
+                "& pre": {
+                  backgroundColor: "#2d2d2d",
+                  padding: "1rem",
+                  borderRadius: "8px",
+                  marginBottom: "1.5rem",
+                  marginTop: "1rem",
+                  color: "#f8f8f2",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  overflowX: "hidden",
+                },
+
+                "& blockquote": {
+                  borderLeft: `4px solid #0d47a1`,
+                  backgroundColor: "#FFFFFF",
+                  padding: "1rem 1.5rem",
+                  margin: "1.5rem 0",
+                  fontStyle: "italic",
+                  color: "#555555",
+                },
               }}
             >
-              {title}
-            </Typography>
+              {isMdx ? (
+                <MDXRemote {...mdxSource} />
+              ) : (
+                <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
+              )}
+            </Box>
 
-            {description && (
-              <Typography
-                component="h2"
-                sx={{ fontSize: "1.2rem", color: "#555555", mb: 2 }}
-              >
-                {description}
+            {/* FOOTER */}
+            <footer style={{ marginTop: "2rem", textAlign: "center" }}>
+              <Typography component="p" sx={{ color: "#666666" }}>
+                © {new Date().getFullYear()} Talberos - Proyecto Open Source (MIT).
               </Typography>
-            )}
-
-            {date && (
-              <Typography
-                component="p"
-                sx={{ color: "#666666", fontStyle: "italic" }}
-              >
-                {new Date(date).toLocaleDateString("es-ES", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </Typography>
-            )}
-          </header>
-
-          {/* IMAGEN PRINCIPAL */}
-          {hasCustomImage ? (
-            <Box sx={{ textAlign: "center", mb: 4 }}>
-              <Image
-                src={image}
-                alt={`Imagen principal del artículo: ${title}`}
-                width={1200}
-                height={600}
-                priority
-                style={{
-                  borderRadius: 8,
-                  maxWidth: "100%",
-                  height: "auto",
-                }}
-              />
-            </Box>
-          ) : (
-            <Box sx={{ textAlign: "center", mb: 4 }}>
-              <Image
-                src={fallbackImagePng}
-                alt="Imagen de fallback para artículos"
-                width={1200}
-                height={600}
-                priority
-                style={{
-                  borderRadius: 8,
-                  maxWidth: "100%",
-                  height: "auto",
-                }}
-              />
-            </Box>
-          )}
-
-          {/* ÍNDICE AUTOMÁTICO */}
-          {TableOfContents && headings.length > 0 && (
-            <Box sx={{ my: 4 }}>
-              <hr
-                style={{
-                  border: "none",
-                  borderTop: "2px solid #DDD",
-                  margin: "1.5rem 0",
-                }}
-              />
-              <TableOfContents headings={headings} />
-              <hr
-                style={{
-                  border: "none",
-                  borderTop: "2px solid #DDD",
-                  margin: "1.5rem 0",
-                }}
-              />
-            </Box>
-          )}
-
-          {/* CONTENIDO DEL ARTÍCULO */}
-          <Box
-            component="section"
-            sx={{
-              color: "#1F1F1F",
-              lineHeight: 1.7,
-              "& h1, & h2, & h3, & h4, & h5, & h6": {
-                marginTop: "2rem",
-                marginBottom: "1rem",
-              },
-              "& p": { marginBottom: "1rem" },
-
-              /* ---- Ajustes para código inline (<code>) ---- */
-              "& code": {
-                backgroundColor: "#2d2d2d",
-                color: "#f8f8f2",
-                padding: "0.2rem 0.4rem",
-                borderRadius: "4px",
-                fontSize: "0.95rem",
-                fontFamily:
-                  "SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace",
-              },
-
-              /* ---- Ajustes para bloques de código (<pre>) ---- */
-              "& pre": {
-                backgroundColor: "#2d2d2d",
-                padding: "1rem",
-                borderRadius: "8px",
-                marginBottom: "1.5rem",
-                marginTop: "1rem",
-                color: "#f8f8f2",
-                /* Evita scroll horizontal y fuerza el ajuste de línea */
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-                overflowX: "hidden",
-              },
-
-              "& blockquote": {
-                borderLeft: `4px solid #0d47a1`,
-                backgroundColor: "#FFFFFF",
-                padding: "1rem 1.5rem",
-                margin: "1.5rem 0",
-                fontStyle: "italic",
-                color: "#555555",
-              },
-            }}
-          >
-            {isMdx ? (
-              <MDXRemote {...mdxSource} />
-            ) : (
-              <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
-            )}
-          </Box>
-
-          {/* FOOTER */}
-          <footer style={{ marginTop: "2rem", textAlign: "center" }}>
-            <Typography component="p" sx={{ color: "#666666" }}>
-              © {new Date().getFullYear()} Talberos - Proyecto Open Source (MIT).
-            </Typography>
-          </footer>
+            </footer>
+          </ContentBoxLayout>
         </Box>
       </Box>
     </>

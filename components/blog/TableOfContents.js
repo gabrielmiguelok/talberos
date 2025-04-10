@@ -1,4 +1,4 @@
-
+"use client";
 /**
  * MIT License
  * ----------------------------------------------------------------------------
@@ -10,14 +10,9 @@
  *
  * LICENCIA: MIT
  */
-"use client";
 import React from "react";
 import { Box, Typography } from "@mui/material";
 
-/**
- * Crea un árbol anidado a partir de headings:
- * [ { id, depth, text }, ... ]
- */
 function buildTocTree(headings) {
   const root = { depth: 0, children: [] };
   const stack = [root];
