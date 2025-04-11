@@ -13,6 +13,10 @@
 import React from "react";
 import { Box, Typography } from "@mui/material";
 
+/**
+ * Construye un árbol a partir de una lista plana de headings
+ * para mostrar sub-niveles de forma jerárquica.
+ */
 function buildTocTree(headings) {
   const root = { depth: 0, children: [] };
   const stack = [root];
@@ -31,14 +35,29 @@ function buildTocTree(headings) {
   return root.children;
 }
 
+/**
+ * Manejador de click para scrollear al heading correspondiente con offset.
+ */
 function handleHeadingClick(e, id) {
   e.preventDefault();
   const el = document.getElementById(id);
-  if (el) {
-    el.scrollIntoView({ behavior: "smooth" });
-  }
+  if (!el) return;
+
+  // Offset aproximado de 2cm (72px)
+  const offset = 72;
+  const rect = el.getBoundingClientRect();
+  const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+  const targetPosition = rect.top + scrollTop - offset;
+
+  window.scrollTo({
+    top: targetPosition,
+    behavior: "smooth",
+  });
 }
 
+/**
+ * Render recursivo de los nodos (árbol de headings).
+ */
 function renderTocItems(nodes) {
   return (
     <ul style={{ marginLeft: 0, paddingLeft: "1.2rem" }}>
@@ -51,7 +70,9 @@ function renderTocItems(nodes) {
           >
             {item.text}
           </a>
-          {item.children && item.children.length > 0 && renderTocItems(item.children)}
+          {item.children &&
+            item.children.length > 0 &&
+            renderTocItems(item.children)}
         </li>
       ))}
     </ul>
@@ -62,6 +83,7 @@ export default function TableOfContents({ headings = [] }) {
   if (!headings.length) return null;
 
   const tree = buildTocTree(headings);
+
   return (
     <Box
       component="nav"
