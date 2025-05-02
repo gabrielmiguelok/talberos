@@ -3,14 +3,13 @@
  * LICENSE: MIT
  *
  * DESCRIPCIÓN:
- * ----------------------------------------------------------------------------------
- *   - Repositorio responsable de la persistencia local (localStorage).
- *   - Lee y escribe el array de filas completas en la clave "myTableData".
+ *  - No persiste nada en localStorage:
+ *    - getAllRows siempre devuelve vacío.
+ *    - saveAllRows borra la clave si existiera (y en la práctica no guarda nunca nada).
  *
- * PRINCIPIOS SOLID:
- * ----------------------------------------------------------------------------------
- *   - SRP: Maneja sólo la lógica de I/O con localStorage.
- *   - DIP: Otros servicios/hook se apoyan en este repositorio sin depender de detalles internos.
+ * PRINCIPIOS APLICADOS:
+ *  - KISS: eliminamos complejidad innecesaria.
+ *  - YAGNI: no necesitamos persistencia local.
  ************************************************************************************/
 
 export class LocalTableDataRepository {
@@ -19,33 +18,22 @@ export class LocalTableDataRepository {
   }
 
   /**
-   * Obtiene el array completo de filas desde localStorage.
-   * Si no existe, retorna un array vacío.
    * @returns {Array<Object>}
+   * Nunca devuelve nada persistido: siempre array vacío.
    */
   getAllRows() {
-    try {
-      const saved = localStorage.getItem(this.storageKey);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-      return [];
-    } catch (error) {
-      console.warn('Error leyendo datos de localStorage:', error);
-      return [];
-    }
+    return [];
   }
 
   /**
-   * Guarda el array completo de filas en localStorage.
    * @param {Array<Object>} rows
+   * En lugar de guardar, limpiamos la clave para asegurarnos de que no quede nada.
    */
   saveAllRows(rows) {
     try {
-      localStorage.setItem(this.storageKey, JSON.stringify(rows));
+      localStorage.removeItem(this.storageKey);
     } catch (error) {
-      console.warn('Error guardando en localStorage:', error);
+      console.warn('Error limpiando localStorage:', error);
     }
   }
 }
-
