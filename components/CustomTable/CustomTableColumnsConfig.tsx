@@ -26,6 +26,28 @@
  */
 
 import React from 'react';
+import { CellContext } from '@tanstack/react-table';
+
+// Tipos para la definición de campos
+interface FieldDefinition {
+  type?: 'link' | 'numeric' | 'text';
+  header?: string;
+  width?: number;
+  // Otros posibles atributos pueden ser añadidos aquí
+}
+
+interface FieldsDefinition {
+  [key: string]: FieldDefinition;
+}
+
+// Tipos para la definición de columnas de la tabla
+interface ColumnDefinition {
+  accessorKey: string;
+  header: string;
+  width: number;
+  isNumeric: boolean;
+  cell?: (info: CellContext<any, any>) => JSX.Element | null;
+}
 
 /**
  * Verifica si una cadena de texto (url) inicia con 'http://' o 'https://'.
@@ -34,8 +56,8 @@ import React from 'react';
  * @param {string} url - La cadena que se desea verificar.
  * @returns {boolean} - Devuelve `true` si la URL inicia con protocolo HTTP/HTTPS, en caso contrario `false`.
  */
-function isHttpUrl(url) {
-  return url && (url.startsWith('http://') || url.startsWith('https://'));
+function isHttpUrl(url: string): boolean {
+  return !!url && (url.startsWith('http://') || url.startsWith('https://'));
 }
 
 /**
@@ -46,7 +68,7 @@ function isHttpUrl(url) {
  * @param {string} url - La URL que se desea normalizar.
  * @returns {string} - Devuelve la URL normalizada; si estaba vacía, retorna un string vacío.
  */
-function normalizeUrl(url) {
+function normalizeUrl(url: string): string {
   if (!url) return '';
   return isHttpUrl(url) ? url : `https://${url}`;
 }
@@ -57,11 +79,11 @@ function normalizeUrl(url) {
  * - Si existe un valor, crea un enlace que se abre en una nueva pestaña.
  *
  * @function renderLinkCell
- * @param {object} info - Objeto provisto por la tabla, contiene métodos para obtener el valor de la celda.
+ * @param {CellContext<any, any>} info - Objeto provisto por la tabla, contiene métodos para obtener el valor de la celda.
  * @returns {JSX.Element|null} - Enlace anclado (<a>), o `null` si no hay valor.
  */
-function renderLinkCell(info) {
-  const url = info.getValue();
+function renderLinkCell(info: CellContext<any, any>): JSX.Element | null {
+  const url = info.getValue() as string;
   if (!url) return null;
   const href = normalizeUrl(url);
 
@@ -76,7 +98,7 @@ function renderLinkCell(info) {
  * Crea un array de definición de columnas para la tabla (CustomTable).
  *
  * @function buildColumnsFromDefinition
- * @param {Object} fieldsDefinition - Objeto que describe cada campo (columna). Ej:
+ * @param {FieldsDefinition} fieldsDefinition - Objeto que describe cada campo (columna). Ej:
  *   {
  *     nombreCampo: {
  *       type: 'link' | 'numeric' | 'text',
@@ -85,7 +107,7 @@ function renderLinkCell(info) {
  *       // ...otros posibles atributos
  *     }
  *   }
- * @returns {Array} - Array de columnas transformado, listo para ser utilizado en CustomTable.
+ * @returns {ColumnDefinition[]} - Array de columnas transformado, listo para ser utilizado en CustomTable.
  *
  * @description
  * Cada propiedad del objeto `fieldsDefinition` corresponde a un campo (columna) en la tabla.
@@ -98,7 +120,7 @@ function renderLinkCell(info) {
  * Si `type` es 'numeric', se marca la columna como numérica para estilado.
  * Caso contrario, se maneja como 'text'.
  */
-export function buildColumnsFromDefinition(fieldsDefinition) {
+export function buildColumnsFromDefinition(fieldsDefinition: FieldsDefinition): ColumnDefinition[] {
   if (!fieldsDefinition || typeof fieldsDefinition !== 'object') {
     return [];
   }

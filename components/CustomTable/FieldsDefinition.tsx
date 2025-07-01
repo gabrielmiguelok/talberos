@@ -22,15 +22,25 @@
  * de `<CustomTable />`.
  */
 
+interface FieldDefinition {
+  type: 'text' | 'numeric' | 'link';
+  header: string;
+  width: number;
+}
+
+interface FieldsDefinition {
+  [key: string]: FieldDefinition;
+}
+
 /**
- * @constant {Object} fieldsDefinition
- * @property {Object} nombre
- * @property {Object} telefono
- * @property {Object} ciudad
- * @property {Object} pais
- * @property {Object} edad
- * @property {Object} likes
- * @property {Object} maps_url
+ * @constant {FieldsDefinition} fieldsDefinition
+ * @property {FieldDefinition} nombre
+ * @property {FieldDefinition} telefono
+ * @property {FieldDefinition} ciudad
+ * @property {FieldDefinition} pais
+ * @property {FieldDefinition} edad
+ * @property {FieldDefinition} likes
+ * @property {FieldDefinition} maps_url
  *
  * Cada subobjeto define:
  *  - type: Determina cómo se interpreta la celda ('text', 'numeric', 'link').
@@ -38,7 +48,7 @@
  *  - width: Ancho preferido (en pixeles).
  *  - [opcional] Otros atributos personalizados según necesidad.
  */
-const fieldsDefinition = {
+const fieldsDefinition: FieldsDefinition = {
   nombre: {
     type: 'text',
     header: 'NOMBRE COMPLETO',

@@ -7,33 +7,43 @@
  */
 
 import React from 'react';
-import { Box, Select, MenuItem } from '@mui/material';
+import { Box, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 
-const operatorsText = [
+interface Operator {
+  label: string;
+  value: string;
+}
+
+interface SortOption {
+  label: string;
+  value: string;
+}
+
+const operatorsText: Operator[] = [
   { label: 'Contiene', value: 'contains' },
   { label: 'Empieza con', value: 'startsWith' },
   { label: 'Termina con', value: 'endsWith' },
   { label: 'Igual a', value: 'equals' },
 ];
 
-const operatorsNumeric = [
+const operatorsNumeric: Operator[] = [
   { label: 'Rango', value: 'range' },
   { label: 'Exacto', value: 'exact' },
 ];
 
-const sortTextOptions = [
+const sortTextOptions: SortOption[] = [
   { label: 'Sin orden', value: 'none' },
   { label: 'A-Z', value: 'asc' },
   { label: 'Z-A', value: 'desc' },
 ];
 
-const sortNumOptions = [
+const sortNumOptions: SortOption[] = [
   { label: 'Sin orden', value: 'none' },
   { label: 'Asc', value: 'asc' },
   { label: 'Desc', value: 'desc' },
 ];
 
-const inputStyles = {
+const inputStyles: React.CSSProperties = {
   width: '100%',
   fontSize: '0.8rem',
   padding: '4px',
@@ -43,12 +53,33 @@ const inputStyles = {
   color: 'var(--color-text)',
 };
 
+interface ColumnFilter {
+  operator?: string;
+  value?: string;
+  min?: number;
+  max?: number;
+  exact?: number;
+  sortDirection?: string;
+}
+
+interface ColumnDefinition {
+  accessorKey: string;
+  isNumeric?: boolean;
+}
+
+interface ColumnFilterConfigurationProps {
+  menuColumnId: string | null;
+  columnFilters: Record<string, ColumnFilter>;
+  updateColumnFilter: (columnId: string, filter: Partial<ColumnFilter>) => void;
+  originalColumnsDef: ColumnDefinition[];
+}
+
 export default function ColumnFilterConfiguration({
   menuColumnId,
   columnFilters,
   updateColumnFilter,
   originalColumnsDef,
-}) {
+}: ColumnFilterConfigurationProps) {
   if (!menuColumnId) return null;
 
   const currentFilter = columnFilters[menuColumnId] || {};
@@ -69,33 +100,33 @@ export default function ColumnFilterConfiguration({
   };
 
   // Handlers
-  const handleOperatorChange = (e) =>
+  const handleOperatorChange = (e: SelectChangeEvent<string>) =>
     updateColumnFilter(menuColumnId, { operator: e.target.value });
 
-  const handleSearchChange = (e) =>
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     updateColumnFilter(menuColumnId, { value: e.target.value });
 
-  const normalizeNumber = (val) => {
+  const normalizeNumber = (val: string): number | undefined => {
     if (val === '') return undefined;
     return Number(val.replace(',', '.'));
   };
 
-  const handleMinChange = (e) => {
+  const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = normalizeNumber(e.target.value);
     updateColumnFilter(menuColumnId, { min: val });
   };
 
-  const handleMaxChange = (e) => {
+  const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = normalizeNumber(e.target.value);
     updateColumnFilter(menuColumnId, { max: val });
   };
 
-  const handleExactNumberChange = (e) => {
+  const handleExactNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = normalizeNumber(e.target.value);
     updateColumnFilter(menuColumnId, { exact: val });
   };
 
-  const handleSortChange = (e) => {
+  const handleSortChange = (e: SelectChangeEvent<string>) => {
     updateColumnFilter(menuColumnId, { sortDirection: e.target.value });
   };
 
